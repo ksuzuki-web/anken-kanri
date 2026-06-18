@@ -21,8 +21,7 @@ export default function LogModal({ candidate, type, onUpdate, onClose }) {
         await addLog(candidate.id, type, currentValue)
       }
       const field = isAction ? 'nextAction' : 'memo'
-      const today = new Date().toISOString().slice(0, 10)
-      const updated = { ...candidate, [field]: text.trim(), updatedAt: today }
+      const updated = { ...candidate, [field]: text.trim(), updatedAt: new Date().toISOString() }
       await saveCandidate(updated)
       onUpdate(updated)
       setText('')

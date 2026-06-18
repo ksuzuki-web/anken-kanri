@@ -23,6 +23,7 @@ function toDb(c) {
     status_changed_at: c.statusChangedAt || null,
     updated_at:       c.updatedAt       || null,
     priority:         c.priority        ?? 0,
+    win_candidate:    c.winCandidate    ?? false,
   }
 }
 
@@ -40,6 +41,7 @@ function toApp(row) {
     statusChangedAt: row.status_changed_at,
     updatedAt:       row.updated_at,
     priority:        row.priority ?? 0,
+    winCandidate:    row.win_candidate ?? false,
   }
 }
 
@@ -89,6 +91,24 @@ export async function loadLogs(candidateId, type) {
   const { data, error } = await q
   if (error) throw error
   return data.map(r => ({ id: r.id, type: r.type, content: r.content, createdAt: r.created_at }))
+}
+
+export async function loadTodos(candidateIds) {
+  if (!candidateIds.length) return []
+  const { data, error } = await supabase
+    .from('todos')
+    .select('*')
+    .in('candidate_id', candidateIds)
+  if (error) throw error
+  return data
+}
+
+export async function upsertTodo(candidateId, statusKey, taskLabel, isDone) {
+  const { error } = await supabase
+    .from('todos')
+    .upsert({ candidate_id: candidateId, status_key: statusKey, task_label: taskLabel, is_done: isDone, done_at: isDone ? new Date().toISOString() : null },
+             { onConflict: 'candidate_id,status_key,task_label' })
+  if (error) throw error
 }
 
 export async function addLog(candidateId, type, content) {

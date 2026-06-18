@@ -12,8 +12,8 @@ const EMPTY = {
   nextAction: '',
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
+function now() {
+  return new Date().toISOString()
 }
 
 export default function Modal({ candidate, prefill, saving, onSave, onDelete, onClose }) {
@@ -48,8 +48,8 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
     const record = {
       ...(candidate || {}),
       ...form,
-      statusChangedAt: (isNew || statusChanged) ? today() : (candidate?.statusChangedAt || today()),
-      updatedAt: today(),
+      statusChangedAt: (isNew || statusChanged) ? now() : (candidate?.statusChangedAt || now()),
+      updatedAt: now(),
     }
     onSave(record)
   }
