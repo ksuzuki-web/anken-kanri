@@ -22,6 +22,7 @@ function toDb(c) {
     next_action:      c.nextAction      ?? '',
     status_changed_at: c.statusChangedAt || null,
     updated_at:       c.updatedAt       || null,
+    priority:         c.priority        ?? 0,
   }
 }
 
@@ -38,6 +39,7 @@ function toApp(row) {
     nextAction:      row.next_action,
     statusChangedAt: row.status_changed_at,
     updatedAt:       row.updated_at,
+    priority:        row.priority ?? 0,
   }
 }
 

@@ -200,6 +200,7 @@ export default function App() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
+                      <th style={th}>注力度</th>
                       <th style={th}>求職者</th>
                       <th style={th}>選考企業</th>
                       <th style={th}>ステータス</th>
@@ -225,6 +226,15 @@ export default function App() {
                               background: alert.isAlert ? '#fffbfb' : '#fff',
                             }}
                           >
+                            {/* 注力度 */}
+                            <td style={{ ...td, width: 70 }}>
+                              {isFirst && (
+                                <PriorityStars
+                                  value={c.priority ?? 0}
+                                  onChange={v => handleInlineChange(c, 'priority', v)}
+                                />
+                              )}
+                            </td>
                             {/* 求職者名 */}
                             <td style={{ ...td, minWidth: 130, borderLeft: `3px solid ${isFirst ? theme.accent : 'transparent'}`, paddingLeft: 14 }}>
                               {isFirst ? (
@@ -382,6 +392,21 @@ export default function App() {
           onClose={() => setModal(null)}
         />
       )}
+    </div>
+  )
+}
+
+function PriorityStars({ value, onChange }) {
+  const color = value === 3 ? '#ef4444' : value === 2 ? '#f59e0b' : '#94a3b8'
+  return (
+    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} title={['', '通常', '注力', '最優先'][value] || ''}>
+      {[1, 2, 3].map(i => (
+        <span
+          key={i}
+          onClick={() => onChange(value === i ? 0 : i)}
+          style={{ fontSize: 15, color: i <= value ? color : '#e2e8f0', cursor: 'pointer', lineHeight: 1, userSelect: 'none' }}
+        >★</span>
+      ))}
     </div>
   )
 }
