@@ -7,18 +7,22 @@ export const STATUSES = [
   { key: 'interview2',     label: '二次選考' },
   { key: 'interviewFinal', label: '最終選考' },
   { key: 'offer',          label: '内定' },
+  { key: 'won',            label: '成約' },
   { key: 'rejectedDoc',    label: '落選（書類）' },
   { key: 'rejected1',      label: '落選（1次）' },
   { key: 'rejectedFinal',  label: '落選（最終）' },
   { key: 'withdrawn',      label: '離脱' },
 ]
 
-export const KANBAN_STATUSES = ['lead', 'screening', 'interview1', 'interview2', 'interviewFinal', 'offer']
+export const KANBAN_STATUSES = ['lead', 'screening', 'interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 export const CLOSED_STATUSES = ['rejectedDoc', 'rejected1', 'rejectedFinal', 'withdrawn']
+// 成約＝着地済みの成功終端。アラート対象外
+export const DONE_STATUSES = ['won']
 export const STATUS_LABEL = Object.fromEntries(STATUSES.map(s => [s.key, s.label]))
 
+// 停滞アラートのしきい値（日数）。面接系は「面接実施後」、それ以外は「ステータス変更後」で判定
 export const STALL_THRESHOLDS = {
-  lead: 5, screening: 2, interview1: 3, interview2: 3, interviewFinal: 3, offer: 3,
+  lead: 5, screening: 3, interview1: 3, interview2: 3, interviewFinal: 3, offer: 5,
 }
 
 // ステータスごとの自動TODOテンプレート
@@ -33,8 +37,8 @@ export const STATUS_TODOS = {
 // 面接系ステータス（面接日前はTODO非表示）
 export const INTERVIEW_STATUSES = ['interview1', 'interview2', 'interviewFinal']
 
-// 成約候補の紹介料カウント対象ステータス（1次以降）
-export const WIN_COUNT_STATUSES = ['interview1', 'interview2', 'interviewFinal', 'offer']
+// 着地候補の紹介料カウント対象ステータス（1次以降）
+export const WIN_COUNT_STATUSES = ['interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 
 // ファネル：失注ポイントの短縮ラベル
 export const LOSS_POINT_LABEL = {

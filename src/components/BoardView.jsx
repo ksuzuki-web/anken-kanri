@@ -3,7 +3,7 @@ import { KANBAN_STATUSES, STATUS_LABEL } from '../constants'
 
 const STATUS_ACCENT = {
   lead: '#94a3b8', screening: '#3b82f6', interview1: '#0ea5e9',
-  interview2: '#8b5cf6', interviewFinal: '#d946ef', offer: '#22c55e',
+  interview2: '#8b5cf6', interviewFinal: '#d946ef', offer: '#22c55e', won: '#047857',
 }
 const PRI_COLOR = { 5: '#ef4444', 4: '#f97316', 3: '#f59e0b', 2: '#84cc16', 1: '#94a3b8' }
 

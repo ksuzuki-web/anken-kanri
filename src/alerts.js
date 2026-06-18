@@ -1,4 +1,4 @@
-import { STALL_THRESHOLDS, CLOSED_STATUSES, INTERVIEW_STATUSES } from './constants'
+import { STALL_THRESHOLDS, CLOSED_STATUSES, INTERVIEW_STATUSES, DONE_STATUSES } from './constants'
 
 function daysSince(dateStr) {
   if (!dateStr) return null
@@ -11,18 +11,26 @@ function daysSince(dateStr) {
 }
 
 export function getAlert(candidate) {
-  if (CLOSED_STATUSES.includes(candidate.status)) return { isAlert: false, reasons: [] }
-
-  const reasons = []
-  const stalled = daysSince(candidate.statusChangedAt)
-  const threshold = STALL_THRESHOLDS[candidate.status] ?? 7
-  if (stalled !== null && stalled >= threshold) {
-    reasons.push(`ステータス変更から${stalled}日経過（基準${threshold}日）`)
+  // 落選・離脱・成約は対象外
+  if (CLOSED_STATUSES.includes(candidate.status) || DONE_STATUSES.includes(candidate.status)) {
+    return { isAlert: false, reasons: [] }
   }
 
-  const overdue = daysSince(candidate.interviewDate)
-  if (overdue !== null && overdue > 0) {
-    reasons.push(`面接予定日を${overdue}日超過`)
+  const reasons = []
+  const threshold = STALL_THRESHOLDS[candidate.status] ?? 5
+
+  if (INTERVIEW_STATUSES.includes(candidate.status)) {
+    // 面接系：面接「実施後」の経過日数で判定（実施前・未入力はアラート対象外）
+    const sinceInterview = daysSince(candidate.interviewDate)
+    if (sinceInterview !== null && sinceInterview >= threshold) {
+      reasons.push(`面接実施から${sinceInterview}日経過（基準${threshold}日）`)
+    }
+  } else {
+    // リード・書類選考・内定：現ステータスでの経過日数で判定
+    const stalled = daysSince(candidate.statusChangedAt)
+    if (stalled !== null && stalled >= threshold) {
+      reasons.push(`現ステータスで${stalled}日経過（基準${threshold}日）`)
+    }
   }
 
   return { isAlert: reasons.length > 0, reasons }

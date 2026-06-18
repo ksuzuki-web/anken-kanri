@@ -3,7 +3,7 @@ import { KANBAN_STATUSES, CLOSED_STATUSES, STATUS_LABEL, LOSS_POINT_LABEL } from
 
 const STAGE_COLOR = {
   lead: '#94a3b8', screening: '#3b82f6', interview1: '#0ea5e9',
-  interview2: '#8b5cf6', interviewFinal: '#d946ef', offer: '#22c55e',
+  interview2: '#8b5cf6', interviewFinal: '#d946ef', offer: '#22c55e', won: '#047857',
 }
 
 export default function FunnelChart({ candidates }) {

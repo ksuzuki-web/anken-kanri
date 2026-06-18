@@ -11,7 +11,7 @@ import HistoryModal from './components/HistoryModal'
 import DigestModal from './components/DigestModal'
 import Confetti from './components/Confetti'
 
-const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer']
+const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 
 const STATUS_STYLE = {
   lead:           { bg: '#f1f5f9', color: '#64748b' },
@@ -20,6 +20,7 @@ const STATUS_STYLE = {
   interview2:     { bg: '#ede9fe', color: '#6d28d9' },
   interviewFinal: { bg: '#fae8ff', color: '#a21caf' },
   offer:          { bg: '#dcfce7', color: '#15803d' },
+  won:            { bg: '#bbf7d0', color: '#047857' },
   rejectedDoc:    { bg: '#fee2e2', color: '#b91c1c' },
   rejected1:      { bg: '#fee2e2', color: '#b91c1c' },
   rejectedFinal:  { bg: '#fee2e2', color: '#b91c1c' },
@@ -76,14 +77,50 @@ function computeTodos(candidates, todosData) {
   return items
 }
 
+// 注力度：横幅を取らないよう「★N」のコンパクト表示。クリックでポップオーバーから選択
 function PriorityStars({ value, onChange }) {
+  const [open, setOpen] = useState(false)
   const color = PRI_COLOR[value] || 'var(--faint)'
   return (
-    <div style={{ display: 'flex', gap: 1 }} title={PRI_LABEL[value] || '未設定'}>
-      {[1,2,3,4,5].map(i => (
-        <span key={i} onClick={() => onChange(value === i ? 0 : i)} style={{ fontSize: 12, color: i <= value ? color : 'var(--faint)', cursor: 'pointer', userSelect: 'none', lineHeight: 1 }}>★</span>
-      ))}
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button onClick={() => setOpen(o => !o)} title={PRI_LABEL[value] || '未設定'}
+        style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 14, padding: '3px 9px', cursor: 'pointer', lineHeight: 1 }}>
+        <span style={{ fontSize: 12, color: value ? color : 'var(--faint)' }}>★</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: value ? 'var(--text-2)' : 'var(--faint)' }}>{value || '－'}</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
+          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 61, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: 'var(--card-shadow)', padding: '6px 8px', display: 'flex', gap: 3 }}>
+            {[1,2,3,4,5].map(i => (
+              <span key={i} onClick={() => { onChange(value === i ? 0 : i); setOpen(false) }}
+                title={PRI_LABEL[i]}
+                style={{ fontSize: 18, color: i <= value ? (PRI_COLOR[value] || '#f59e0b') : 'var(--faint)', cursor: 'pointer', lineHeight: 1 }}>★</span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
+  )
+}
+
+// 面接日：年を省き月/日のみ表示。クリックで日付ピッカー編集
+function DateCell({ value, onChange, variant }) {
+  const [edit, setEdit] = useState(false)
+  const isM = variant === 'mobile'
+  if (edit) {
+    return <input type="date" autoFocus value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setEdit(false)}
+      style={isM ? mInput : { ...inputSt, width: 110 }} />
+  }
+  let label = isM ? '日付を選択' : '—'
+  if (value) { const p = value.split('-'); if (p.length === 3) label = `${+p[1]}/${+p[2]}` }
+  return (
+    <button onClick={() => setEdit(true)}
+      style={isM
+        ? { ...mInput, textAlign: 'left', cursor: 'pointer', color: value ? 'var(--text)' : 'var(--muted-2)' }
+        : { background: 'none', border: 'none', padding: '2px 4px', fontSize: 13, cursor: 'pointer', textAlign: 'left', color: value ? 'var(--text-2)' : 'var(--faint)' }}>
+      {label}
+    </button>
   )
 }
 
@@ -202,7 +239,7 @@ function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, onPriorit
           {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
         <button onClick={() => onInline(c, 'winCandidate', !c.winCandidate)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 8, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--muted-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          {c.winCandidate ? '✓' : '○'} 成約
+          {c.winCandidate ? '✓' : '○'} 着地
         </button>
       </div>
       {c.statusChangedAt && <div style={{ fontSize: 11, color: 'var(--muted-2)', marginTop: 4 }}>変更: {fmtDt(c.statusChangedAt)}</div>}
@@ -214,14 +251,14 @@ function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, onPriorit
         </div>
         <div style={{ flex: 1 }}>
           <div style={mLabel}>面接日</div>
-          <input type="date" value={c.interviewDate || ''} onChange={e => onInline(c, 'interviewDate', e.target.value)} style={mInput} />
+          <DateCell value={c.interviewDate} onChange={v => onInline(c, 'interviewDate', v)} variant="mobile" />
         </div>
       </div>
 
       <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <button onClick={() => onLog(c, 'action', suggestion)} style={mLogBtn}>
           <span style={{ fontSize: 11, color: 'var(--muted-2)', fontWeight: 600, flexShrink: 0 }}>📋 次回</span>
-          <span style={{ fontSize: 13, color: c.nextAction ? 'var(--text-3)' : '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || (suggestion ? `💡 ${suggestion}` : '—')}</span>
+          <span style={{ fontSize: 13, color: c.nextAction ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
         </button>
         <button onClick={() => onLog(c, 'memo', null)} style={mLogBtn}>
           <span style={{ fontSize: 11, color: 'var(--muted-2)', fontWeight: 600, flexShrink: 0 }}>📋 メモ</span>
@@ -339,7 +376,7 @@ export default function App() {
           if (prev[k] !== saved[k]) logChange(saved, k, prev[k], saved[k])
         }
       }
-      if (saved.status === 'offer' && (!prev || prev.status !== 'offer')) setConfetti(true)
+      if (saved.status === 'won' && (!prev || prev.status !== 'won')) setConfetti(true)
     } catch (e) { alert('保存失敗: ' + e.message) }
     finally { setSaving(false) }
   }
@@ -354,7 +391,7 @@ export default function App() {
     }
     setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c))
     logChange(candidate, field, candidate[field], value)
-    if (statusChanged && value === 'offer') setConfetti(true)
+    if (statusChanged && value === 'won') setConfetti(true)
     try { await saveCandidate(updated) }
     catch (e) { alert('保存失敗: ' + e.message); load() }
   }
@@ -562,7 +599,7 @@ export default function App() {
                   <div style={{ background: `${accent}22`, color: accent, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>ユニーク {uniqueCount}件</div>
                   {winCount > 0 && (
                     <div style={{ background: 'rgba(34,197,94,0.16)', color: '#16a34a', borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span>✓ 成約候補 {winCount}件</span>
+                      <span>✓ 着地候補 {winCount}件</span>
                       {winFee > 0 && <span style={{ opacity: 0.8 }}>/ {winFee}万円</span>}
                     </div>
                   )}
@@ -590,18 +627,18 @@ export default function App() {
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+                    <table style={{ borderCollapse: 'collapse', tableLayout: 'auto' }}>
                       <thead>
                         <tr>
-                          <th style={{ ...th, width: 68 }}>注力度</th>
+                          <th style={{ ...th, width: 56 }}>注力度</th>
                           <th style={th}>求職者</th>
                           <th style={th}>選考企業</th>
-                          <th style={{ ...th, width: 140 }}>ステータス</th>
-                          <th style={{ ...th, width: 52 }}>成約</th>
-                          <th style={{ ...th, width: 80 }}>紹介料</th>
-                          <th style={{ ...th, width: 120 }}>面接日</th>
-                          <th style={{ ...th, minWidth: 150 }}>次回アクション</th>
-                          <th style={{ ...th, minWidth: 110 }}>メモ</th>
+                          <th style={{ ...th, width: 132 }}>ステータス</th>
+                          <th style={{ ...th, width: 46 }}>着地</th>
+                          <th style={{ ...th, width: 62 }}>紹介料</th>
+                          <th style={{ ...th, width: 70 }}>面接日</th>
+                          <th style={th}>次回アクション</th>
+                          <th style={th}>メモ</th>
                           <th style={{ ...th, width: 36 }} />
                         </tr>
                       </thead>
@@ -630,7 +667,7 @@ export default function App() {
                                   )}
                                 </td>
                                 <td style={td}>
-                                  <input value={c.company || ''} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={inputSt} placeholder="企業名" />
+                                  <input value={c.company || ''} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={{ ...inputSt, fieldSizing: 'content', minWidth: 84, maxWidth: 280 }} placeholder="企業名" />
                                 </td>
                                 <td style={td}>
                                   <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} style={{ ...inputSt, background: ss.bg, color: ss.color, fontWeight: 600, fontSize: 12, borderRadius: 20, paddingLeft: 10, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
@@ -639,27 +676,24 @@ export default function App() {
                                   {c.statusChangedAt && <div style={{ fontSize: 10, color: 'var(--muted-2)', marginTop: 3, paddingLeft: 2 }}>{fmtDt(c.statusChangedAt)}</div>}
                                 </td>
                                 <td style={{ ...td, textAlign: 'center' }}>
-                                  <button onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="成約候補にマーク"
+                                  <button onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="着地候補にマーク"
                                     style={{ width: 28, height: 28, border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 6, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--faint)', fontSize: 13, cursor: 'pointer' }}>{c.winCandidate ? '✓' : '○'}</button>
                                 </td>
                                 <td style={td}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <input type="number" value={c.fee ?? ''} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: 52, textAlign: 'right' }} placeholder="0" />
-                                    <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>万</span>
-                                  </div>
+                                  <input type="number" value={c.fee ?? ''} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: 50, textAlign: 'right' }} placeholder="—" />
                                 </td>
                                 <td style={td}>
-                                  <input type="date" value={c.interviewDate || ''} onChange={e => handleInlineChange(c, 'interviewDate', e.target.value)} style={inputSt} />
+                                  <DateCell value={c.interviewDate} onChange={v => handleInlineChange(c, 'interviewDate', v)} />
                                 </td>
                                 <td style={{ ...td, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'action', suggestion: sug })}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={{ fontSize: 12, color: c.nextAction ? 'var(--text-3)' : '#3b82f6', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || (sug ? `💡 ${sug}` : '—')}</span>
+                                    <span style={{ fontSize: 12, color: c.nextAction ? 'var(--text-3)' : 'var(--faint)', maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
                                     <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
                                   </div>
                                 </td>
                                 <td style={{ ...td, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'memo', suggestion: null })}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={{ fontSize: 12, color: c.memo ? 'var(--text-3)' : 'var(--faint)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
+                                    <span style={{ fontSize: 12, color: c.memo ? 'var(--text-3)' : 'var(--faint)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
                                     <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
                                   </div>
                                 </td>
@@ -686,8 +720,9 @@ export default function App() {
               <button onClick={() => setClosedOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--muted-2)', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 10 }}>{closedOpen ? '▾' : '▸'}</span>落選・離脱 ({closedShown.length}件)
               </button>
-              {closedOpen && (
-                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto', marginTop: 8 }}>
+              {closedOpen && (<>
+                <div style={{ fontSize: 11, color: 'var(--muted-2)', margin: '8px 2px 0' }}>↩ ステータスを選考中（リード〜成約）に戻すと、上のリストに復活します</div>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto', marginTop: 6 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 'auto' }}>
                     <tbody>
                       {closedShown.map(c => {
@@ -696,7 +731,12 @@ export default function App() {
                           <tr key={c.id} style={{ borderBottom: '1px solid var(--border-soft)' }}>
                             <td style={{ ...td, color: 'var(--muted)', fontWeight: 500 }}>{c.candidateName}</td>
                             <td style={{ ...td, color: 'var(--muted-2)' }}>{c.company}</td>
-                            <td style={td}><span style={{ background: ss.bg, color: ss.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{STATUS_LABEL[c.status]}</span></td>
+                            <td style={td}>
+                              <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} title="ステータスを選考中に戻すとリストに復活します"
+                                style={{ ...inputSt, width: 'auto', background: ss.bg, color: ss.color, fontWeight: 600, fontSize: 11, borderRadius: 20, padding: '2px 10px', cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+                                {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                              </select>
+                            </td>
                             <td style={{ ...td, color: 'var(--muted-2)', fontSize: 12 }}>{c.assignedCA}</td>
                             <td style={{ ...td, color: 'var(--muted-2)', fontSize: 12 }}>{c.memo}</td>
                             <td style={{ ...td, textAlign: 'center' }}>
@@ -710,7 +750,7 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-              )}
+              </>)}
             </div>
           )}
           </>
