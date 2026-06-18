@@ -1,231 +1,182 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import KanbanColumn from './components/KanbanColumn'
-import CandidateModal from './components/CandidateModal'
-import ClosedSection from './components/ClosedSection'
-import { KANBAN_COLUMNS, CLOSED_STATUSES, STATUS_MAP, CA_MEMBERS } from './constants'
-import { evaluateAlert } from './alerts'
-import {
-  loadCandidates,
-  createCandidate,
-  updateCandidate,
-  deleteCandidate,
-  subscribeToChanges,
-  generateId,
-} from './storage'
+import React, { useState, useEffect, useCallback } from 'react'
+import { CA_MEMBERS, KANBAN_STATUSES, CLOSED_STATUSES, STATUS_LABEL } from './constants'
+import { loadAll, insertCandidate, saveCandidate, removeCandidate, subscribeToChanges, generateId } from './storage'
+import { getAlert } from './alerts'
+import Modal from './components/Modal'
 
 export default function App() {
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [showModal, setShowModal] = useState(false)
+  const [error, setError] = useState(null)
+  const [selected, setSelected] = useState(null) // null = closed, 'new' = new, candidate obj = edit
   const [caFilter, setCaFilter] = useState('all')
   const [alertOnly, setAlertOnly] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
-      const data = await loadCandidates()
+      const data = await loadAll()
       setCandidates(data)
-      setLoadError(null)
+      setError(null)
     } catch (e) {
-      console.error(e)
-      setLoadError('データの読み込みに失敗しました。接続設定（.env）を確認してください。')
+      setError('データの読み込みに失敗しました: ' + e.message)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // 初回読み込み
+  useEffect(() => { load() }, [load])
+
   useEffect(() => {
-    refresh()
-  }, [refresh])
+    return subscribeToChanges(load)
+  }, [load])
 
-  // 他の人がデータを変更したら自動で再読み込みする（リアルタイム共有）
-  useEffect(() => {
-    const unsubscribe = subscribeToChanges(() => {
-      refresh()
-    })
-    return () => unsubscribe()
-  }, [refresh])
+  const filtered = candidates.filter(c => {
+    if (caFilter !== 'all' && c.assignedCA !== caFilter) return false
+    if (alertOnly && !getAlert(c).isAlert) return false
+    return true
+  })
 
-  const filtered = useMemo(() => {
-    return candidates.filter((c) => {
-      if (caFilter !== 'all' && c.assignedCA !== caFilter) return false
-      if (alertOnly && !evaluateAlert(c).isAlert) return false
-      return true
-    })
-  }, [candidates, caFilter, alertOnly])
+  const alertCount = candidates.filter(c => getAlert(c).isAlert).length
 
-  const alertCount = useMemo(() => candidates.filter((c) => evaluateAlert(c).isAlert).length, [candidates])
-
-  function openNew() {
-    setSelected(null)
-    setShowModal(true)
-  }
-
-  function openEdit(candidate) {
-    setSelected(candidate)
-    setShowModal(true)
-  }
-
-  async function handleSave(record, isNew) {
+  async function handleSave(form) {
     setSaving(true)
     try {
-      if (isNew) {
-        const created = await createCandidate({ ...record, id: generateId() })
-        setCandidates((prev) => [...prev, created])
-      } else {
-        const updated = await updateCandidate(record)
-        setCandidates((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
-      }
-      setShowModal(false)
+      const isNew = !form.id
+      const record = isNew ? { ...form, id: generateId() } : form
+      const saved = isNew ? await insertCandidate(record) : await saveCandidate(record)
+      setCandidates(prev =>
+        isNew ? [...prev, saved] : prev.map(c => c.id === saved.id ? saved : c)
+      )
+      setSelected(null)
     } catch (e) {
-      window.alert('保存に失敗しました。もう一度お試しください。')
+      alert('保存に失敗しました: ' + e.message)
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id) {
+    if (!confirm('この候補者を削除しますか？')) return
     setSaving(true)
     try {
-      await deleteCandidate(id)
-      setCandidates((prev) => prev.filter((c) => c.id !== id))
-      setShowModal(false)
+      await removeCandidate(id)
+      setCandidates(prev => prev.filter(c => c.id !== id))
+      setSelected(null)
     } catch (e) {
-      window.alert('削除に失敗しました。もう一度お試しください。')
+      alert('削除に失敗しました: ' + e.message)
     } finally {
       setSaving(false)
     }
   }
 
-  const closedCandidates = filtered.filter((c) => CLOSED_STATUSES.includes(c.status))
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text-secondary)', fontSize: '14px' }}>
-        読み込み中…
-      </div>
-    )
-  }
-
-  if (loadError) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '24px' }}>
-        <div style={{ maxWidth: '420px', textAlign: 'center', color: 'var(--danger-text)', fontSize: '14px' }}>
-          {loadError}
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <div style={centerStyle}>読み込み中...</div>
+  if (error) return <div style={{ ...centerStyle, color: '#c00' }}>{error}</div>
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header
-        style={{
-          background: 'var(--navy-900)',
-          color: '#fff',
-          padding: '14px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: '15px', fontWeight: 600 }}>案件管理</div>
-          <div style={{ fontSize: '11px', color: 'var(--gold-100)' }}>宅建Jobエージェント ユニット管理ボード</div>
-        </div>
-        <button
-          onClick={openNew}
-          disabled={saving}
-          style={{
-            background: 'var(--gold-500)',
-            color: 'var(--navy-900)',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: saving ? 'default' : 'pointer',
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          ＋ 候補者を追加
-        </button>
-      </header>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          padding: '12px 24px',
-          background: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>担当CA</label>
-          <select
-            value={caFilter}
-            onChange={(e) => setCaFilter(e.target.value)}
-            style={{
-              fontSize: '13px',
-              padding: '6px 8px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-default)',
-            }}
-          >
-            <option value="all">全員</option>
-            {CA_MEMBERS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
+    <div style={{ minHeight: '100vh', background: '#f0f4f8', fontFamily: 'sans-serif' }}>
+      {/* ヘッダー */}
+      <div style={{ background: '#1a2e4a', color: '#fff', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span style={{ fontWeight: 700, fontSize: 16 }}>案件管理 | 宅建Jobエージェント</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <select value={caFilter} onChange={e => setCaFilter(e.target.value)} style={selectStyle}>
+            <option value="all">全担当</option>
+            {CA_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-        </div>
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={alertOnly} onChange={(e) => setAlertOnly(e.target.checked)} />
-          要注意のみ表示
-        </label>
-
-        <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          全{candidates.length}件
-          {alertCount > 0 && (
-            <span style={{ color: 'var(--danger-text)', fontWeight: 600, marginLeft: '8px' }}>
-              ⚠ 要注意 {alertCount}件
-            </span>
-          )}
+          <label style={{ fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={alertOnly} onChange={e => setAlertOnly(e.target.checked)} />
+            要注意のみ {alertCount > 0 && <span style={{ background: '#e53e3e', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{alertCount}</span>}
+          </label>
+          <button onClick={() => setSelected('new')} style={primaryBtn}>+ 候補者追加</button>
         </div>
       </div>
 
-      <main style={{ flex: 1, padding: '20px 24px', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: '14px' }}>
-          {KANBAN_COLUMNS.map((statusKey) => (
-            <KanbanColumn
-              key={statusKey}
-              statusKey={statusKey}
-              label={STATUS_MAP[statusKey].label}
-              candidates={filtered.filter((c) => c.status === statusKey)}
-              onCardClick={openEdit}
-            />
-          ))}
-        </div>
+      {/* カンバン */}
+      <div style={{ display: 'flex', gap: 12, padding: 16, overflowX: 'auto' }}>
+        {KANBAN_STATUSES.map(status => {
+          const cols = filtered.filter(c => c.status === status)
+          return (
+            <div key={status} style={{ minWidth: 200, flex: '0 0 200px', background: '#e2e8f0', borderRadius: 8, padding: 10 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: '#2d3748' }}>
+                {STATUS_LABEL[status]}
+                <span style={{ marginLeft: 6, background: '#cbd5e0', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{cols.length}</span>
+              </div>
+              {cols.map(c => <Card key={c.id} candidate={c} onClick={() => setSelected(c)} />)}
+            </div>
+          )
+        })}
+      </div>
 
-        <ClosedSection candidates={closedCandidates} onCardClick={openEdit} />
-      </main>
+      {/* 落選・離脱 */}
+      <ClosedSection
+        candidates={filtered.filter(c => CLOSED_STATUSES.includes(c.status))}
+        onClick={c => setSelected(c)}
+      />
 
-      {showModal && (
-        <CandidateModal
-          candidate={selected}
+      {/* モーダル */}
+      {selected !== null && (
+        <Modal
+          candidate={selected === 'new' ? null : selected}
+          saving={saving}
           onSave={handleSave}
           onDelete={handleDelete}
-          onClose={() => setShowModal(false)}
+          onClose={() => setSelected(null)}
         />
       )}
     </div>
   )
 }
+
+function Card({ candidate, onClick }) {
+  const alert = getAlert(candidate)
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: '#fff',
+        borderRadius: 6,
+        padding: '8px 10px',
+        marginBottom: 8,
+        cursor: 'pointer',
+        border: alert.isAlert ? '2px solid #e53e3e' : '1px solid #e2e8f0',
+        fontSize: 13,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 3 }}>{candidate.candidateName}</div>
+      {candidate.company && <div style={{ color: '#718096', fontSize: 12 }}>{candidate.company}</div>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: '#a0aec0' }}>
+        <span>{candidate.assignedCA}</span>
+        {candidate.fee && <span>{candidate.fee}万円</span>}
+      </div>
+      {alert.isAlert && (
+        <div style={{ color: '#e53e3e', fontSize: 11, marginTop: 4 }}>{alert.reasons[0]}</div>
+      )}
+    </div>
+  )
+}
+
+function ClosedSection({ candidates, onClick }) {
+  const [open, setOpen] = useState(false)
+  if (candidates.length === 0) return null
+  return (
+    <div style={{ padding: '0 16px 16px' }}>
+      <button onClick={() => setOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#4a5568', fontWeight: 600 }}>
+        {open ? '▼' : '▶'} 落選・離脱 ({candidates.length}件)
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+          {candidates.map(c => (
+            <div key={c.id} onClick={() => onClick(c)} style={{ background: '#fff', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', border: '1px solid #e2e8f0', fontSize: 13 }}>
+              <span style={{ color: '#718096', fontSize: 11, marginRight: 6 }}>{STATUS_LABEL[c.status]}</span>
+              {c.candidateName}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const centerStyle = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 16 }
+const selectStyle = { fontSize: 13, padding: '4px 8px', borderRadius: 4, border: '1px solid #4a6fa5' }
+const primaryBtn = { background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }
