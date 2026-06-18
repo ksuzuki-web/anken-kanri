@@ -36,6 +36,16 @@ function fmtDt(iso) {
   return d.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < breakpoint)
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [breakpoint])
+  return isMobile
+}
+
 function computeTodos(candidates, todosData) {
   const todosMap = {}
   for (const t of todosData) todosMap[`${t.candidate_id}|${t.status_key}|${t.task_label}`] = t
@@ -157,6 +167,67 @@ function TodoPanel({ items, onToggle }) {
   )
 }
 
+function MobileCard({ c, isFirst, name, ca, theme, alert, onPriority, onInline, onLog, onDelete, onAddCompany }) {
+  const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
+  return (
+    <div style={{ padding: '14px 14px', borderBottom: '1px solid #f1f5f9', background: alert.isAlert ? '#fffbfb' : '#fff', borderLeft: `3px solid ${isFirst ? theme.accent : '#f1f5f9'}` }}>
+      {/* 上段：名前 or └、注力度、削除 */}
+      {isFirst ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#ef4444', fontSize: 9 }}>●</span>}
+          <span style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>{name}</span>
+          <PriorityStars value={c.priority ?? 0} onChange={v => onPriority(name, v)} />
+          <button onClick={onAddCompany} style={{ fontSize: 11, padding: '2px 9px', background: theme.badgeBg, border: 'none', borderRadius: 20, cursor: 'pointer', color: theme.badgeColor, fontWeight: 700 }}>+企業</button>
+          <button onClick={() => onDelete(c.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e0', fontSize: 18 }}>×</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+          <span style={{ color: '#94a3b8', fontSize: 12 }}>└ 同じ候補者の別企業</span>
+          <button onClick={() => onDelete(c.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e0', fontSize: 18 }}>×</button>
+        </div>
+      )}
+
+      {/* 企業名 */}
+      <input value={c.company || ''} onChange={e => onInline(c, 'company', e.target.value)} placeholder="企業名" style={{ ...mInput, fontWeight: 600, fontSize: 15 }} />
+
+      {/* ステータス + 成約 */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+        <select value={c.status} onChange={e => onInline(c, 'status', e.target.value)} style={{ ...mInput, flex: 1, background: ss.bg, color: ss.color, fontWeight: 700, appearance: 'none', WebkitAppearance: 'none', border: 'none' }}>
+          {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
+        <button onClick={() => onInline(c, 'winCandidate', !c.winCandidate)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', border: `1.5px solid ${c.winCandidate ? '#16a34a' : '#e2e8f0'}`, borderRadius: 8, background: c.winCandidate ? '#dcfce7' : '#fff', color: c.winCandidate ? '#16a34a' : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          {c.winCandidate ? '✓' : '○'} 成約
+        </button>
+      </div>
+      {c.statusChangedAt && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>変更: {fmtDt(c.statusChangedAt)}</div>}
+
+      {/* 紹介料 + 面接日 */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={mLabel}>紹介料（万円）</div>
+          <input type="number" value={c.fee ?? ''} onChange={e => onInline(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} placeholder="0" style={mInput} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={mLabel}>面接日</div>
+          <input type="date" value={c.interviewDate || ''} onChange={e => onInline(c, 'interviewDate', e.target.value)} style={mInput} />
+        </div>
+      </div>
+
+      {/* 次回アクション・メモ */}
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <button onClick={() => onLog(c, 'action')} style={mLogBtn}>
+          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, flexShrink: 0 }}>📋 次回</span>
+          <span style={{ fontSize: 13, color: c.nextAction ? '#475569' : '#cbd5e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
+        </button>
+        <button onClick={() => onLog(c, 'memo')} style={mLogBtn}>
+          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, flexShrink: 0 }}>📋 メモ</span>
+          <span style={{ fontSize: 13, color: c.memo ? '#475569' : '#cbd5e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [candidates, setCandidates] = useState([])
   const [todos, setTodos] = useState([])
@@ -168,6 +239,8 @@ export default function App() {
   const [closedOpen, setClosedOpen] = useState(false)
   const [caFilter, setCaFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState(null)
+  const isMobile = useIsMobile()
+  const px = isMobile ? 12 : 24
 
   const load = useCallback(async () => {
     try {
@@ -281,28 +354,28 @@ export default function App() {
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
       {/* Header */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 14, position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: `0 ${px}px`, height: 56, display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ width: 30, height: 30, background: '#0f172a', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>宅</span>
         </div>
-        <span style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>宅建Jobエージェント</span>
-        <span style={{ color: '#e2e8f0' }}>|</span>
-        <span style={{ fontSize: 13, color: '#94a3b8' }}>案件管理</span>
+        <span style={{ fontWeight: 700, fontSize: isMobile ? 14 : 15, color: '#0f172a' }}>宅建Jobエージェント</span>
+        {!isMobile && <span style={{ color: '#e2e8f0' }}>|</span>}
+        {!isMobile && <span style={{ fontSize: 13, color: '#94a3b8' }}>案件管理</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
           {alertCount > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 20, padding: '4px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 20, padding: isMobile ? '4px 9px' : '4px 12px' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>要注意 {alertCount}件</span>
+              <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>{isMobile ? alertCount : `要注意 ${alertCount}件`}</span>
             </div>
           )}
-          <button onClick={() => setModal('new')} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            + 候補者を追加
+          <button onClick={() => setModal('new')} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: isMobile ? '8px 14px' : '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {isMobile ? '+ 追加' : '+ 候補者を追加'}
           </button>
         </div>
       </header>
 
       {/* Kanban strip（クリックで絞り込み） */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '10px 24px' }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: `10px ${px}px` }}>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', alignItems: 'center' }}>
           {KANBAN_STATUSES.map(status => {
             const items = filteredByCA.filter(c => c.status === status)
@@ -330,10 +403,10 @@ export default function App() {
       </div>
 
       {/* Main layout */}
-      <div style={{ padding: '20px 24px', display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ padding: isMobile ? '14px 12px' : '20px 24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 20, alignItems: 'flex-start' }}>
 
         {/* Left: CA sections */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* CA filter tabs */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -393,6 +466,27 @@ export default function App() {
                   <div style={{ padding: '24px', textAlign: 'center' }}>
                     <div style={{ color: '#cbd5e0', fontSize: 13, marginBottom: 10 }}>{statusFilter ? `「${STATUS_LABEL[statusFilter]}」の候補者なし` : '候補者なし'}</div>
                     {!statusFilter && <button onClick={() => setModal({ _prefill: { assignedCA: ca } })} style={{ fontSize: 12, padding: '6px 18px', background: 'transparent', border: '1.5px dashed #e2e8f0', borderRadius: 8, cursor: 'pointer', color: '#94a3b8' }}>+ 候補者を追加</button>}
+                  </div>
+                ) : isMobile ? (
+                  <div>
+                    {[...candidateMap.entries()].map(([name, rows]) =>
+                      rows.map((c, idx) => (
+                        <MobileCard
+                          key={c.id}
+                          c={c}
+                          isFirst={idx === 0}
+                          name={name}
+                          ca={ca}
+                          theme={theme}
+                          alert={getAlert(c)}
+                          onPriority={handlePriorityChange}
+                          onInline={handleInlineChange}
+                          onLog={(cand, type) => setLogModal({ candidate: cand, type })}
+                          onDelete={handleDelete}
+                          onAddCompany={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })}
+                        />
+                      ))
+                    )}
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
@@ -508,8 +602,8 @@ export default function App() {
                 <span style={{ fontSize: 10 }}>{closedOpen ? '▾' : '▸'}</span>落選・離脱 ({closed.length}件)
               </button>
               {closedOpen && (
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginTop: 8 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflowX: 'auto', marginTop: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 'auto' }}>
                     <tbody>
                       {closed.map(c => {
                         const ss = STATUS_STYLE[c.status] || STATUS_STYLE.withdrawn
@@ -538,7 +632,9 @@ export default function App() {
         </div>
 
         {/* Right sidebar */}
-        <div style={{ width: 210, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 76, maxHeight: 'calc(100vh - 96px)', overflowY: 'auto' }}>
+        <div style={isMobile
+          ? { width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }
+          : { width: 210, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 76, maxHeight: 'calc(100vh - 96px)', overflowY: 'auto' }}>
           <PriorityChart candidates={filteredByCA} />
           <TodoPanel items={todoItems} onToggle={handleToggleTodo} />
         </div>
@@ -561,3 +657,8 @@ const cardTitle = { fontWeight: 700, fontSize: 13, color: '#0f172a', letterSpaci
 const th = { padding: '8px 8px', textAlign: 'left', fontSize: 11, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: '#fafafa', borderBottom: '1px solid #f1f5f9' }
 const td = { padding: '7px 7px', verticalAlign: 'middle', fontSize: 13 }
 const inputSt = { width: '100%', padding: '4px 7px', border: '1px solid transparent', borderRadius: 6, fontSize: 13, background: 'transparent', color: '#1e293b', boxSizing: 'border-box', outline: 'none' }
+
+// モバイルカード用スタイル
+const mInput = { width: '100%', padding: '9px 11px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, background: '#fff', color: '#1e293b', boxSizing: 'border-box', outline: 'none' }
+const mLabel = { fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }
+const mLogBtn = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 11px', border: '1px solid #f1f5f9', borderRadius: 8, background: '#f8fafc', cursor: 'pointer' }
