@@ -120,6 +120,38 @@ export async function addLog(candidateId, type, content) {
   return { id: data.id, type: data.type, content: data.content, createdAt: data.created_at }
 }
 
+// ===== 変更履歴（誰がいつ何を変えたか）=====
+// change_logs テーブルが未作成でもアプリが壊れないよう、失敗は握りつぶす設計
+export async function addChangeLog({ candidateId, candidateName, field, oldValue, newValue, changedBy }) {
+  try {
+    await supabase.from('change_logs').insert({
+      id: generateId(),
+      candidate_id: candidateId,
+      candidate_name: candidateName ?? '',
+      field,
+      old_value: oldValue == null ? '' : String(oldValue),
+      new_value: newValue == null ? '' : String(newValue),
+      changed_by: changedBy || '不明',
+    })
+  } catch (_) { /* テーブル未作成時などは無視 */ }
+}
+
+export async function loadRecentChanges(limit = 120) {
+  try {
+    const { data, error } = await supabase
+      .from('change_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+    return data.map(r => ({
+      id: r.id, candidateId: r.candidate_id, candidateName: r.candidate_name,
+      field: r.field, oldValue: r.old_value, newValue: r.new_value,
+      changedBy: r.changed_by, createdAt: r.created_at,
+    }))
+  } catch (_) { return [] }
+}
+
 export function subscribeToChanges(onChange) {
   const channel = supabase
     .channel('candidates')

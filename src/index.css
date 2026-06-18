@@ -1,35 +1,57 @@
 :root {
-  --navy-900: #0a1f3d;
-  --navy-800: #122a4f;
-  --navy-700: #1c3a66;
-  --navy-100: #e7ecf3;
-  --navy-50: #f3f6fa;
-  --gold-500: #b8923f;
-  --gold-100: #f3e9d2;
+  --font-sans: "Hiragino Sans", "Yu Gothic", "Segoe UI", system-ui, -apple-system, sans-serif;
 
-  --bg-page: #f4f5f7;
-  --bg-card: #ffffff;
-  --border-default: #dfe2e8;
-  --border-strong: #c2c8d3;
+  /* 構造色（ライト） */
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-sub: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-card: #e8edf2;
+  --border-soft: #f1f5f9;
 
-  --text-primary: #1a1d24;
-  --text-secondary: #5b6270;
-  --text-tertiary: #8b9099;
+  --text: #0f172a;
+  --text-2: #1e293b;
+  --text-3: #475569;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
+  --faint: #cbd5e0;
 
-  --danger-bg: #fdecec;
-  --danger-border: #e8a3a3;
-  --danger-text: #a32d2d;
-  --danger-strong: #c4393c;
+  --primary: #0f172a;
+  --primary-fg: #ffffff;
 
-  --success-bg: #e9f3ea;
-  --success-text: #2a6b3c;
-
-  --closed-bg: #eceef0;
-  --closed-text: #6b7280;
+  --card-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+  --overlay: rgba(15, 23, 42, 0.4);
+  --alert-row: #fffbfb;
 
   --radius-md: 8px;
   --radius-lg: 12px;
-  --font-sans: "Hiragino Sans", "Yu Gothic", "Segoe UI", system-ui, sans-serif;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b1220;
+  --surface: #141d31;
+  --surface-sub: #1b263d;
+  --surface-hover: #202c45;
+  --border: #2b3856;
+  --border-card: #273048;
+  --border-soft: #222d44;
+
+  --text: #f1f5f9;
+  --text-2: #e2e8f0;
+  --text-3: #cbd5e0;
+  --muted: #9fb0c9;
+  --muted-2: #8294b0;
+  --faint: #56657f;
+
+  --primary: #3b82f6;
+  --primary-fg: #ffffff;
+
+  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --overlay: rgba(0, 0, 0, 0.62);
+  --alert-row: #2a1d22;
 }
 
 * {
@@ -39,9 +61,10 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg-page);
-  color: var(--text-primary);
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 button {
@@ -53,4 +76,66 @@ textarea,
 select {
   font-family: inherit;
   font-size: 14px;
+}
+
+/* 細いスクロールバー */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--faint);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ドラッグ中のカンバン列ハイライト */
+.col-dragover {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+  background: var(--surface-hover) !important;
+}
+.card-dragging {
+  opacity: 0.4;
+}
+
+/* 紙吹雪 */
+.confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: -16px;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-20px) rotateZ(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(102vh) rotateZ(680deg);
+    opacity: 0.9;
+  }
+}
+
+/* モーダル等のフェードイン */
+@keyframes pop-in {
+  from {
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }

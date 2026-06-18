@@ -35,3 +35,11 @@ export const INTERVIEW_STATUSES = ['interview1', 'interview2', 'interviewFinal']
 
 // 成約候補の紹介料カウント対象ステータス（1次以降）
 export const WIN_COUNT_STATUSES = ['interview1', 'interview2', 'interviewFinal', 'offer']
+
+// ファネル：失注ポイントの短縮ラベル
+export const LOSS_POINT_LABEL = {
+  rejectedDoc:   '書類落ち',
+  rejected1:     '1次落ち',
+  rejectedFinal: '最終落ち',
+  withdrawn:     '離脱',
+}

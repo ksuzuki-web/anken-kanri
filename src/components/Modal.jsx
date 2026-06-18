@@ -58,7 +58,7 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
     <div style={overlay} onClick={onClose}>
       <div style={dialog} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#2d3748' }}>{isNew ? '候補者を追加' : '候補者を編集'}</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{isNew ? '候補者を追加' : '候補者を編集'}</h2>
           <button onClick={onClose} style={iconBtn}>×</button>
         </div>
 
@@ -103,12 +103,12 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
           {!isNew
-            ? <button onClick={() => onDelete(candidate.id)} style={{ ...btn, color: '#e53e3e', borderColor: '#feb2b2' }} disabled={saving}>削除</button>
+            ? <button onClick={() => onDelete(candidate.id)} style={{ ...btn, color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }} disabled={saving}>削除</button>
             : <span />
           }
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={btn} disabled={saving}>キャンセル</button>
-            <button onClick={handleSave} style={{ ...btn, background: '#2d3748', color: '#fff', borderColor: '#2d3748' }} disabled={saving}>
+            <button onClick={handleSave} style={{ ...btn, background: 'var(--primary)', color: 'var(--primary-fg)', borderColor: 'var(--primary)', fontWeight: 700 }} disabled={saving}>
               {saving ? '保存中...' : '保存'}
             </button>
           </div>
@@ -121,7 +121,7 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
 function Label({ text, children }) {
   return (
     <div style={{ marginBottom: 12, flex: 1 }}>
-      <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>{text}</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{text}</div>
       {children}
     </div>
   )
@@ -131,8 +131,8 @@ function Row({ children }) {
   return <div style={{ display: 'flex', gap: 10 }}>{children}</div>
 }
 
-const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }
-const dialog  = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 24 }
-const inp     = { width: '100%', padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13, boxSizing: 'border-box', color: '#2d3748' }
-const btn     = { padding: '7px 16px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, cursor: 'pointer' }
-const iconBtn = { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#a0aec0', lineHeight: 1 }
+const overlay = { position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16, backdropFilter: 'blur(2px)' }
+const dialog  = { background: 'var(--surface)', borderRadius: 14, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.3)', animation: 'pop-in .18s ease' }
+const inp     = { width: '100%', padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, boxSizing: 'border-box', color: 'var(--text)', background: 'var(--surface)', outline: 'none' }
+const btn     = { padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer' }
+const iconBtn = { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--muted-2)', lineHeight: 1 }
