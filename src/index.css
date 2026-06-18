@@ -1,141 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap');
+
 :root {
-  --font-sans: "Hiragino Sans", "Yu Gothic", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Segoe UI", system-ui, sans-serif;
 
   /* 構造色（ライト） */
-  --bg: #f4f6f9;
+  --bg: #f5f7fb;
+  --bg-grad-top: #f8f9fd;
+  --bg-grad-bot: #eceff7;
   --surface: #ffffff;
-  --surface-sub: #f8fafc;
-  --surface-hover: #f1f5f9;
-  --border: #e2e8f0;
-  --border-card: #e8edf2;
-  --border-soft: #f1f5f9;
+  --surface-sub: #f7f9fc;
+  --surface-hover: #eef2f8;
+  --border: #e6eaf1;
+  --border-card: #eaeef4;
+  --border-soft: #f1f4f9;
 
-  --text: #0f172a;
-  --text-2: #1e293b;
-  --text-3: #475569;
-  --muted: #64748b;
-  --muted-2: #94a3b8;
-  --faint: #cbd5e0;
+  --text: #0f1729;
+  --text-2: #283449;
+  --text-3: #4a5670;
+  --muted: #6b7689;
+  --muted-2: #97a1b4;
+  --faint: #c4ccda;
 
-  --primary: #0f172a;
+  --primary: #1e293b;
   --primary-fg: #ffffff;
+  --accent: #4f46e5;
 
-  --card-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
-  --overlay: rgba(15, 23, 42, 0.4);
-  --alert-row: #fffbfb;
+  --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.05);
+  --card-shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.06), 0 14px 34px rgba(15, 23, 42, 0.10);
+  --overlay: rgba(15, 23, 42, 0.42);
+  --alert-row: #fff8f8;
 
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
 
   --bg: #0b1220;
-  --surface: #141d31;
-  --surface-sub: #1b263d;
-  --surface-hover: #202c45;
-  --border: #2b3856;
-  --border-card: #273048;
-  --border-soft: #222d44;
+  --bg-grad-top: #0d1426;
+  --bg-grad-bot: #0a0f1c;
+  --surface: #151f33;
+  --surface-sub: #1a2740;
+  --surface-hover: #213050;
+  --border: #2a3a59;
+  --border-card: #263248;
+  --border-soft: #1f2c44;
 
-  --text: #f1f5f9;
-  --text-2: #e2e8f0;
-  --text-3: #cbd5e0;
-  --muted: #9fb0c9;
-  --muted-2: #8294b0;
-  --faint: #56657f;
+  --text: #f3f6fc;
+  --text-2: #e2e8f3;
+  --text-3: #c2cce0;
+  --muted: #9aa7bf;
+  --muted-2: #7d8aa4;
+  --faint: #51607c;
 
-  --primary: #3b82f6;
+  --primary: #6366f1;
   --primary-fg: #ffffff;
+  --accent: #818cf8;
 
-  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-  --overlay: rgba(0, 0, 0, 0.62);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.42);
+  --card-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 40px rgba(0, 0, 0, 0.55);
+  --overlay: rgba(2, 6, 16, 0.66);
   --alert-row: #2a1d22;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg);
+  background: linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-bot) 100%);
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   transition: background 0.25s ease, color 0.25s ease;
 }
 
-button {
-  font-family: inherit;
-}
-
-input,
-textarea,
-select {
-  font-family: inherit;
-  font-size: 14px;
-}
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; font-size: 14px; }
 
 /* 細いスクロールバー */
-::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--faint);
-  border-radius: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
+::-webkit-scrollbar-track { background: transparent; }
 
-/* ドラッグ中のカンバン列ハイライト */
-.col-dragover {
-  outline: 2px dashed var(--primary);
-  outline-offset: -2px;
-  background: var(--surface-hover) !important;
-}
-.card-dragging {
-  opacity: 0.4;
-}
+/* インタラクション */
+.list-row { transition: background 0.12s ease; }
+.list-row:hover { background: var(--surface-hover); }
+
+.card-hover { transition: box-shadow 0.18s ease, transform 0.18s ease; }
+.card-hover:hover { box-shadow: var(--card-shadow-hover); }
+
+.btn-primary { transition: transform 0.1s ease, box-shadow 0.18s ease, opacity 0.15s ease; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(30, 41, 59, 0.22); }
+.btn-primary:active { transform: translateY(0); }
+
+.icon-btn { transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.1s; }
+.icon-btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--muted-2); }
+.icon-btn:active { transform: scale(0.94); }
+
+.pill-btn { transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s; }
+.pill-btn:hover { box-shadow: var(--card-shadow); }
+
+.cell-input { transition: background 0.12s, box-shadow 0.12s; border-radius: 7px; }
+.cell-input:hover { background: var(--surface-hover); }
+.cell-input:focus { background: var(--surface-hover); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
 
 /* 紙吹雪 */
-.confetti-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  overflow: hidden;
-}
-.confetti-piece {
-  position: absolute;
-  top: -16px;
-  width: 9px;
-  height: 14px;
-  border-radius: 2px;
-  animation: confetti-fall linear forwards;
-}
+.confetti-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+.confetti-piece { position: absolute; top: -16px; width: 9px; height: 14px; border-radius: 2px; animation: confetti-fall linear forwards; }
 @keyframes confetti-fall {
-  0% {
-    transform: translateY(-20px) rotateZ(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(102vh) rotateZ(680deg);
-    opacity: 0.9;
-  }
+  0% { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
+  100% { transform: translateY(102vh) rotateZ(680deg); opacity: 0.9; }
 }
 
-/* モーダル等のフェードイン */
 @keyframes pop-in {
-  from {
-    transform: translateY(8px) scale(0.98);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
+.pop-in { animation: pop-in 0.2s ease; }

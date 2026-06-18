@@ -464,11 +464,11 @@ export default function App() {
       {confetti && <Confetti onDone={() => setConfetti(false)} />}
 
       {/* Header */}
-      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: `0 ${px}px`, height: 56, display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ width: 30, height: 30, background: 'var(--primary)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ color: 'var(--primary-fg)', fontSize: 12, fontWeight: 800 }}>宅</span>
+      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 12px rgba(15,23,42,0.04)', padding: `0 ${px}px`, height: 58, display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, var(--accent), var(--primary))', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(79,70,229,0.28)' }}>
+          <span style={{ color: '#fff', fontSize: 13, fontWeight: 800 }}>宅</span>
         </div>
-        <span style={{ fontWeight: 700, fontSize: isMobile ? 14 : 15, color: 'var(--text)' }}>宅建Jobエージェント</span>
+        <span style={{ fontWeight: 800, fontSize: isMobile ? 14 : 15.5, color: 'var(--text)', letterSpacing: '-0.01em' }}>宅建Jobエージェント</span>
         {!isMobile && <span style={{ color: 'var(--border)' }}>|</span>}
         {!isMobile && <span style={{ fontSize: 13, color: 'var(--muted-2)' }}>案件管理</span>}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -478,7 +478,7 @@ export default function App() {
               <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>{isMobile ? alertCount : `要注意 ${alertCount}件`}</span>
             </div>
           )}
-          <button onClick={() => setModal('new')} style={{ background: 'var(--primary)', color: 'var(--primary-fg)', border: 'none', borderRadius: 8, padding: isMobile ? '8px 14px' : '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button className="btn-primary" onClick={() => setModal('new')} style={{ background: 'linear-gradient(135deg, var(--accent), var(--primary))', color: '#fff', border: 'none', borderRadius: 9, padding: isMobile ? '8px 14px' : '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(79,70,229,0.25)' }}>
             {isMobile ? '+ 追加' : '+ 候補者を追加'}
           </button>
         </div>
@@ -512,9 +512,9 @@ export default function App() {
             <option value="">👤 担当者</option>
             {CA_MEMBERS.map(m => <option key={m} value={m}>👤 {m}</option>)}
           </select>
-          <button onClick={() => setDigestOpen(true)} title="今日やること" style={iconBtn}>☀️</button>
-          <button onClick={() => setHistoryOpen(true)} title="変更履歴" style={iconBtn}>🕐</button>
-          <button onClick={() => setDark(d => !d)} title="ダークモード切替" style={iconBtn}>{dark ? '🌙' : '☀'}</button>
+          <button onClick={() => setDigestOpen(true)} title="今日やること" className="icon-btn" style={iconBtn}>☀️</button>
+          <button onClick={() => setHistoryOpen(true)} title="変更履歴" className="icon-btn" style={iconBtn}>🕐</button>
+          <button onClick={() => setDark(d => !d)} title="ダークモード切替" className="icon-btn" style={iconBtn}>{dark ? '🌙' : '☀'}</button>
         </div>
       </div>
 
@@ -592,8 +592,8 @@ export default function App() {
             const accent = caColorOf(ca)
             const totalApps = [...candidateMap.values()].reduce((s, r) => s + r.length, 0)
             return (
-              <div key={ca} style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border-card)', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
-                <div style={{ background: `${accent}14`, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border-card)', flexWrap: 'wrap' }}>
+              <div key={ca} className="card-hover" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-card)', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
+                <div style={{ background: `linear-gradient(180deg, ${accent}1f, ${accent}0a)`, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border-card)', flexWrap: 'wrap' }}>
                   <span style={{ width: 10, height: 10, borderRadius: '50%', background: accent, flexShrink: 0 }} />
                   <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{ca}</span>
                   <div style={{ background: `${accent}22`, color: accent, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>ユニーク {uniqueCount}件</div>
@@ -627,87 +627,76 @@ export default function App() {
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ borderCollapse: 'collapse', tableLayout: 'auto' }}>
-                      <thead>
-                        <tr>
-                          <th style={{ ...th, width: 56 }}>注力度</th>
-                          <th style={th}>求職者</th>
-                          <th style={th}>選考企業</th>
-                          <th style={{ ...th, width: 132 }}>ステータス</th>
-                          <th style={{ ...th, width: 46 }}>着地</th>
-                          <th style={{ ...th, width: 62 }}>紹介料</th>
-                          <th style={{ ...th, width: 70 }}>面接日</th>
-                          <th style={th}>次回アクション</th>
-                          <th style={th}>メモ</th>
-                          <th style={{ ...th, width: 36 }} />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...candidateMap.entries()].map(([name, rows]) =>
-                          rows.map((c, idx) => {
-                            const alert = getAlert(c)
-                            const issues = getInconsistencies(c)
-                            const sug = suggestNextAction(c)
-                            const isFirst = idx === 0
-                            const isLast = idx === rows.length - 1
-                            const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
-                            return (
-                              <tr key={c.id} style={{ borderBottom: isLast ? '1px solid var(--border-card)' : '1px solid var(--border-soft)', background: alert.isAlert ? 'var(--alert-row)' : 'var(--surface)' }}>
-                                <td style={{ ...td, paddingLeft: 14 }}>{isFirst && <PriorityStars value={c.priority ?? 0} onChange={v => handlePriorityChange(name, v)} />}</td>
-                                <td style={{ ...td, minWidth: 110, borderLeft: `3px solid ${isFirst ? accent : 'transparent'}`, paddingLeft: 12 }}>
-                                  {isFirst ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                      {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#ef4444', fontSize: 9, cursor: 'help' }}>●</span>}
-                                      {issues.length > 0 && <span title={issues.join('\n')} style={{ color: '#f59e0b', fontSize: 11, cursor: 'help' }}>⚠</span>}
-                                      <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{name}</span>
-                                      <button onClick={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })} style={{ fontSize: 10, padding: '1px 7px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>
-                                    </div>
-                                  ) : (
-                                    <span style={{ color: 'var(--faint)', fontSize: 12, paddingLeft: 10 }}>└</span>
-                                  )}
-                                </td>
-                                <td style={td}>
-                                  <input value={c.company || ''} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={{ ...inputSt, fieldSizing: 'content', minWidth: 84, maxWidth: 280 }} placeholder="企業名" />
-                                </td>
-                                <td style={td}>
-                                  <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} style={{ ...inputSt, background: ss.bg, color: ss.color, fontWeight: 600, fontSize: 12, borderRadius: 20, paddingLeft: 10, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
-                                    {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                  </select>
-                                  {c.statusChangedAt && <div style={{ fontSize: 10, color: 'var(--muted-2)', marginTop: 3, paddingLeft: 2 }}>{fmtDt(c.statusChangedAt)}</div>}
-                                </td>
-                                <td style={{ ...td, textAlign: 'center' }}>
-                                  <button onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="着地候補にマーク"
-                                    style={{ width: 28, height: 28, border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 6, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--faint)', fontSize: 13, cursor: 'pointer' }}>{c.winCandidate ? '✓' : '○'}</button>
-                                </td>
-                                <td style={td}>
-                                  <input type="number" value={c.fee ?? ''} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: 50, textAlign: 'right' }} placeholder="—" />
-                                </td>
-                                <td style={td}>
-                                  <DateCell value={c.interviewDate} onChange={v => handleInlineChange(c, 'interviewDate', v)} />
-                                </td>
-                                <td style={{ ...td, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'action', suggestion: sug })}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={{ fontSize: 12, color: c.nextAction ? 'var(--text-3)' : 'var(--faint)', maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
-                                    <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
+                    <div style={{ minWidth: 720 }}>
+                      {/* ヘッダー */}
+                      <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, columnGap: 10, padding: '2px 14px 8px', borderBottom: '1px solid var(--border-soft)', borderLeft: '3px solid transparent' }}>
+                        {['注力度', '求職者', '選考企業', 'ステータス', '着地', '紹介料', '面接日', '次回アクション', 'メモ', ''].map((h, i) => (
+                          <div key={i} style={hcell}>{h}</div>
+                        ))}
+                      </div>
+                      {/* 行 */}
+                      {[...candidateMap.entries()].map(([name, rows]) =>
+                        rows.map((c, idx) => {
+                          const alert = getAlert(c)
+                          const issues = getInconsistencies(c)
+                          const sug = suggestNextAction(c)
+                          const isFirst = idx === 0
+                          const isLast = idx === rows.length - 1
+                          const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
+                          return (
+                            <div key={c.id} className="list-row" style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'center', columnGap: 10, padding: '8px 14px', borderBottom: isLast ? '1px solid var(--border-card)' : '1px solid var(--border-soft)', borderLeft: `3px solid ${isFirst ? accent : 'transparent'}`, background: alert.isAlert ? 'var(--alert-row)' : undefined }}>
+                              <div>{isFirst && <PriorityStars value={c.priority ?? 0} onChange={v => handlePriorityChange(name, v)} />}</div>
+                              <div style={{ minWidth: 0 }}>
+                                {isFirst ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                    {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#ef4444', fontSize: 9, cursor: 'help' }}>●</span>}
+                                    {issues.length > 0 && <span title={issues.join('\n')} style={{ color: '#f59e0b', fontSize: 11, cursor: 'help' }}>⚠</span>}
+                                    <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{name}</span>
+                                    <button className="pill-btn" onClick={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })} style={{ fontSize: 10, padding: '1px 7px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>
                                   </div>
-                                </td>
-                                <td style={{ ...td, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'memo', suggestion: null })}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={{ fontSize: 12, color: c.memo ? 'var(--text-3)' : 'var(--faint)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
-                                    <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
-                                  </div>
-                                </td>
-                                <td style={{ ...td, textAlign: 'center' }}>
-                                  <button onClick={() => handleDelete(c)} title="削除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15, padding: '2px 4px', borderRadius: 4 }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                        )}
-                      </tbody>
-                    </table>
+                                ) : (
+                                  <span style={{ color: 'var(--faint)', fontSize: 12, paddingLeft: 4 }}>└</span>
+                                )}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <input className="cell-input" value={c.company || ''} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={{ ...inputSt, width: '100%' }} placeholder="企業名" />
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} style={{ ...inputSt, width: '100%', background: ss.bg, color: ss.color, fontWeight: 700, fontSize: 12, borderRadius: 20, paddingLeft: 10, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+                                  {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                                </select>
+                                {c.statusChangedAt && <div style={{ fontSize: 10, color: 'var(--muted-2)', marginTop: 3, paddingLeft: 2 }}>{fmtDt(c.statusChangedAt)}</div>}
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <button className="pill-btn" onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="着地候補にマーク"
+                                  style={{ width: 28, height: 28, border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 7, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--faint)', fontSize: 13, cursor: 'pointer' }}>{c.winCandidate ? '✓' : '○'}</button>
+                              </div>
+                              <div>
+                                <input className="cell-input" type="number" value={c.fee ?? ''} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: '100%', textAlign: 'right' }} placeholder="—" />
+                              </div>
+                              <div><DateCell value={c.interviewDate} onChange={v => handleInlineChange(c, 'interviewDate', v)} /></div>
+                              <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'action', suggestion: sug })}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: c.nextAction ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
+                                  <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
+                                </div>
+                              </div>
+                              <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'memo', suggestion: null })}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: c.memo ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
+                                  <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <button onClick={() => handleDelete(c)} title="削除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15, padding: '2px 4px', borderRadius: 4 }}
+                                  onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
+                                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -784,7 +773,7 @@ export default function App() {
 }
 
 const center = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 16, color: 'var(--muted)' }
-const card = { background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border-card)', padding: '14px 16px', boxShadow: 'var(--card-shadow)' }
+const card = { background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-card)', padding: '15px 16px', boxShadow: 'var(--card-shadow)' }
 const cardTitle = { fontWeight: 700, fontSize: 13, color: 'var(--text)', letterSpacing: '-0.01em' }
 const th = { padding: '8px 8px', textAlign: 'left', fontSize: 11, color: 'var(--muted-2)', fontWeight: 700, letterSpacing: '0.05em', whiteSpace: 'nowrap', background: 'var(--surface-sub)', borderBottom: '1px solid var(--border-soft)' }
 const td = { padding: '7px 7px', verticalAlign: 'middle', fontSize: 13 }
@@ -794,3 +783,7 @@ const iconBtn = { width: 36, height: 36, borderRadius: 8, border: '1px solid var
 const mInput = { width: '100%', padding: '9px 11px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box', outline: 'none' }
 const mLabel = { fontSize: 11, color: 'var(--muted-2)', fontWeight: 600, marginBottom: 4 }
 const mLogBtn = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 11px', border: '1px solid var(--border-soft)', borderRadius: 8, background: 'var(--surface-sub)', cursor: 'pointer' }
+
+// グリッド一覧の列定義（テキスト列がfrで余白を吸収＝右側に隙間を作らない）
+const GRID_COLS = '58px 132px minmax(110px,0.9fr) 124px 46px 60px 64px minmax(140px,1.8fr) minmax(96px,1.2fr) 30px'
+const hcell = { fontSize: 10.5, color: 'var(--muted-2)', fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
