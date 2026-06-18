@@ -6,6 +6,13 @@ import Modal from './components/Modal'
 
 const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer']
 
+// 担当ごとの背景色
+const CA_COLORS = {
+  [CA_MEMBERS[0]]: { header: '#1e4080', light: '#ebf0fa' },
+  [CA_MEMBERS[1]]: { header: '#1a6645', light: '#eaf5ee' },
+  [CA_MEMBERS[2]]: { header: '#7b2d8b', light: '#f5eaf8' },
+}
+
 export default function App() {
   const [candidates, setCandidates] = useState([])
   const [loading, setLoading] = useState(true)
@@ -80,24 +87,28 @@ export default function App() {
   if (loading) return <div style={center}>読み込み中...</div>
   if (error) return <div style={{ ...center, color: '#e53e3e' }}>{error}</div>
 
-  // 担当CAごとにグループ化 → その中で求職者名ごとにグループ化
+  // 担当別グループ: 同一候補者の複数選考はまとめて表示
   const caGroups = CA_MEMBERS.map(ca => {
     const caRows = active.filter(c => c.assignedCA === ca)
-    const candidateMap = {}
+
+    // 候補者名でグループ化（順序保持）
+    const candidateMap = new Map()
     for (const c of caRows) {
-      if (!candidateMap[c.candidateName]) candidateMap[c.candidateName] = []
-      candidateMap[c.candidateName].push(c)
+      const key = c.candidateName || '（名前未設定）'
+      if (!candidateMap.has(key)) candidateMap.set(key, [])
+      candidateMap.get(key).push(c)
     }
-    const candidateGroups = Object.entries(candidateMap).map(([name, rows]) => ({ name, rows }))
-    // ユニーク = 書類選考以降のステータスを持つ候補者（人）の数
-    const uniqueCount = candidateGroups.filter(({ rows }) =>
+
+    // ユニーク = 書類選考以降のステータスを1件以上持つ候補者（人）の数
+    const uniqueCount = [...candidateMap.values()].filter(rows =>
       rows.some(r => UNIQUE_STATUSES.includes(r.status))
     ).length
-    return { ca, candidateGroups, uniqueCount }
+
+    return { ca, candidateMap, uniqueCount }
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f7f8fa', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f0f2f5', fontFamily: 'system-ui, sans-serif' }}>
       {/* ヘッダー */}
       <div style={{ background: '#1a2e4a', color: '#fff', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>案件管理 | 宅建Jobエージェント</span>
@@ -111,79 +122,91 @@ export default function App() {
         </div>
       </div>
 
-      {/* カンバン（上部サマリー） */}
+      {/* カンバンサマリー */}
       <div style={{ padding: '12px 16px 0' }}>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 6, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>選考サマリー</div>
+        <div style={{ fontSize: 11, color: '#718096', marginBottom: 6, fontWeight: 500, letterSpacing: '0.05em' }}>選考サマリー</div>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
           {KANBAN_STATUSES.map(status => {
             const items = active.filter(c => c.status === status)
             const alertItems = items.filter(c => getAlert(c).isAlert)
             return (
-              <div key={status} style={{ minWidth: 110, flex: '0 0 110px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px' }}>
+              <div key={status} style={{ minWidth: 100, flex: '0 0 100px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '8px 10px' }}>
                 <div style={{ fontSize: 11, color: '#718096', marginBottom: 4 }}>{STATUS_LABEL[status]}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: '#2d3748', lineHeight: 1 }}>{items.length}</div>
-                {alertItems.length > 0 && (
-                  <div style={{ fontSize: 10, color: '#e53e3e', marginTop: 3 }}>⚠ {alertItems.length}件要注意</div>
-                )}
+                {alertItems.length > 0 && <div style={{ fontSize: 10, color: '#e53e3e', marginTop: 3 }}>⚠ {alertItems.length}件</div>}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* 担当別テーブル */}
-      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {caGroups.map(({ ca, candidateGroups, uniqueCount }) => (
-          <div key={ca} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
-            {/* CA セクションヘッダー */}
-            <div style={{ background: '#2d3748', color: '#fff', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>【担当】{ca}</span>
-              <span style={{ fontSize: 12, background: 'rgba(255,255,255,0.18)', borderRadius: 10, padding: '2px 10px' }}>
-                ユニーク：{uniqueCount}件
-              </span>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginLeft: 'auto' }}>
-                {candidateGroups.length}名 · {candidateGroups.reduce((s, g) => s + g.rows.length, 0)}社
-              </span>
-            </div>
+      {/* 担当別セクション */}
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {caGroups.map(({ ca, candidateMap, uniqueCount }) => {
+          const colors = CA_COLORS[ca] || { header: '#2d3748', light: '#f7f8fa' }
+          const totalRows = [...candidateMap.values()].reduce((s, r) => s + r.length, 0)
+          return (
+            <div key={ca} style={{ borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+              {/* CA ヘッダー */}
+              <div style={{ background: colors.header, color: '#fff', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>【担当】{ca}</span>
+                <span style={{ background: 'rgba(255,255,255,0.22)', borderRadius: 20, padding: '3px 12px', fontSize: 13, fontWeight: 600 }}>
+                  ユニーク {uniqueCount}件
+                </span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginLeft: 'auto' }}>
+                  候補者 {candidateMap.size}名 / 選考 {totalRows}社
+                </span>
+                <button
+                  onClick={() => setModal({ _prefill: { assignedCA: ca } })}
+                  style={{ fontSize: 12, padding: '4px 12px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, cursor: 'pointer', color: '#fff' }}
+                >+ 追加</button>
+              </div>
 
-            {candidateGroups.length === 0 ? (
-              <div style={{ padding: '14px 16px', color: '#a0aec0', fontSize: 13 }}>候補者なし</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: '#f7f8fa', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={th}>選考企業</th>
-                    <th style={th}>ステータス</th>
-                    <th style={th}>紹介料</th>
-                    <th style={th}>面接日</th>
-                    <th style={th}>次回アクション</th>
-                    <th style={th}>メモ</th>
-                    <th style={{ ...th, width: 50 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidateGroups.map(group => (
-                    <React.Fragment key={group.name}>
-                      {/* 求職者名 親行 */}
-                      <tr style={{ background: '#edf2f7', borderBottom: '1px solid #e2e8f0' }}>
-                        <td colSpan={7} style={{ padding: '5px 12px', fontWeight: 600, color: '#2d3748', fontSize: 13 }}>
-                          {group.name}
-                          <span style={{ fontWeight: 400, color: '#718096', fontSize: 11, marginLeft: 8 }}>{group.rows.length}社選考中</span>
-                          <button
-                            onClick={() => setModal({ _prefill: { candidateName: group.name, assignedCA: ca } })}
-                            style={{ marginLeft: 12, fontSize: 11, padding: '2px 8px', background: '#fff', border: '1px solid #cbd5e0', borderRadius: 4, cursor: 'pointer', color: '#4a5568' }}
-                          >+ 企業追加</button>
-                        </td>
-                      </tr>
-                      {/* 選考行 */}
-                      {group.rows.map(c => {
+              {candidateMap.size === 0 ? (
+                <div style={{ background: '#fff', padding: '14px 16px', color: '#a0aec0', fontSize: 13 }}>候補者なし</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#fff' }}>
+                  <thead>
+                    <tr style={{ background: colors.light, borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={th}>求職者名</th>
+                      <th style={th}>選考企業</th>
+                      <th style={th}>ステータス</th>
+                      <th style={th}>紹介料</th>
+                      <th style={th}>面接日</th>
+                      <th style={th}>次回アクション</th>
+                      <th style={th}>メモ</th>
+                      <th style={{ ...th, width: 60 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...candidateMap.entries()].map(([name, rows]) =>
+                      rows.map((c, idx) => {
                         const alert = getAlert(c)
+                        const isFirst = idx === 0
+                        const isLast = idx === rows.length - 1
                         return (
-                          <tr key={c.id} style={{ borderBottom: '1px solid #f0f0f0', background: alert.isAlert ? '#fff5f5' : '#fff' }}>
-                            <td style={td}>
-                              {alert.isAlert && (
-                                <span title={alert.reasons.join(' / ')} style={{ color: '#e53e3e', marginRight: 4, cursor: 'help' }}>●</span>
+                          <tr key={c.id} style={{
+                            borderBottom: isLast ? '2px solid #e8ecf0' : '1px solid #f0f0f0',
+                            background: alert.isAlert ? '#fff5f5' : '#fff',
+                          }}>
+                            {/* 求職者名：同一人物は最初の行のみ表示 */}
+                            <td style={{ ...td, fontWeight: isFirst ? 600 : 400, color: isFirst ? '#2d3748' : 'transparent', borderLeft: `3px solid ${isFirst ? colors.header : 'transparent'}` }}>
+                              {isFirst ? (
+                                <span>
+                                  {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#e53e3e', marginRight: 4, cursor: 'help', fontWeight: 400 }}>●</span>}
+                                  {name}
+                                  {rows.length > 1 && (
+                                    <button
+                                      onClick={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })}
+                                      style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', background: colors.light, border: `1px solid ${colors.header}30`, borderRadius: 3, cursor: 'pointer', color: colors.header, fontWeight: 400 }}
+                                    >+企業</button>
+                                  )}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#a0aec0', fontSize: 11, paddingLeft: 12 }}>└</span>
                               )}
+                            </td>
+                            <td style={td}>
                               <input
                                 value={c.company || ''}
                                 onChange={e => handleInlineChange(c, 'company', e.target.value)}
@@ -195,7 +218,7 @@ export default function App() {
                               <select
                                 value={c.status}
                                 onChange={e => handleInlineChange(c, 'status', e.target.value)}
-                                style={{ ...cellInput, color: alert.isAlert ? '#e53e3e' : '#2d3748' }}
+                                style={{ ...cellInput, color: alert.isAlert ? '#e53e3e' : '#2d3748', fontWeight: alert.isAlert ? 600 : 400 }}
                               >
                                 {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                               </select>
@@ -240,14 +263,14 @@ export default function App() {
                             </td>
                           </tr>
                         )
-                      })}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        ))}
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )
+        })}
 
         {/* 落選・離脱 */}
         {closed.length > 0 && (
@@ -296,7 +319,7 @@ export default function App() {
 
 const center = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: 16 }
 const addBtn = { background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }
-const th = { padding: '8px 10px', textAlign: 'left', fontSize: 12, color: '#718096', fontWeight: 500, whiteSpace: 'nowrap' }
+const th = { padding: '8px 10px', textAlign: 'left', fontSize: 12, color: '#555', fontWeight: 600, whiteSpace: 'nowrap' }
 const td = { padding: '5px 8px', verticalAlign: 'middle' }
 const cellInput = { width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: 4, fontSize: 13, background: 'transparent', color: '#2d3748', boxSizing: 'border-box' }
 const delBtn = { background: 'none', border: 'none', color: '#cbd5e0', cursor: 'pointer', fontSize: 16, padding: '2px 6px', borderRadius: 4 }
