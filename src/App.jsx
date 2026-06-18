@@ -108,19 +108,32 @@ function PriorityStars({ value, onChange }) {
 function DateCell({ value, onChange, variant }) {
   const [edit, setEdit] = useState(false)
   const isM = variant === 'mobile'
-  if (edit) {
-    return <input type="date" autoFocus value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setEdit(false)}
-      style={isM ? mInput : { ...inputSt, width: 110 }} />
-  }
   let label = isM ? '日付を選択' : '—'
   if (value) { const p = value.split('-'); if (p.length === 3) label = `${+p[1]}/${+p[2]}` }
+
+  // モバイルは横幅に余裕があるのでその場で入力欄に切替
+  if (isM) {
+    if (edit) {
+      return <input type="date" autoFocus value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setEdit(false)} style={mInput} />
+    }
+    return (
+      <button onClick={() => setEdit(true)} style={{ ...mInput, textAlign: 'left', cursor: 'pointer', color: value ? 'var(--text)' : 'var(--muted-2)' }}>{label}</button>
+    )
+  }
+
+  // 一覧（グリッド）は列が狭いので、編集時は前面にポップオーバー表示して隣の列と被らないようにする
   return (
-    <button onClick={() => setEdit(true)}
-      style={isM
-        ? { ...mInput, textAlign: 'left', cursor: 'pointer', color: value ? 'var(--text)' : 'var(--muted-2)' }
-        : { background: 'none', border: 'none', padding: '2px 4px', fontSize: 13, cursor: 'pointer', textAlign: 'left', color: value ? 'var(--text-2)' : 'var(--faint)' }}>
-      {label}
-    </button>
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setEdit(true)} style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 13, cursor: 'pointer', textAlign: 'left', color: value ? 'var(--text-2)' : 'var(--faint)' }}>{label}</button>
+      {edit && (
+        <input
+          type="date" autoFocus value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => setEdit(false)}
+          style={{ position: 'absolute', top: -6, left: -6, width: 156, zIndex: 30, padding: '8px 10px', border: '1.5px solid var(--accent)', borderRadius: 9, background: 'var(--surface)', color: 'var(--text)', boxShadow: 'var(--card-shadow-hover)', outline: 'none', fontSize: 13 }}
+        />
+      )}
+    </div>
   )
 }
 
