@@ -15,15 +15,13 @@ export const STATUSES = [
 
 export const KANBAN_STATUSES = ['lead', 'screening', 'interview1', 'interview2', 'interviewFinal', 'offer']
 export const CLOSED_STATUSES = ['rejectedDoc', 'rejected1', 'rejectedFinal', 'withdrawn']
-
 export const STATUS_LABEL = Object.fromEntries(STATUSES.map(s => [s.key, s.label]))
 
-// 停滞アラートのしきい値（日数）
 export const STALL_THRESHOLDS = {
   lead: 5,
-  screening: 7,
-  interview1: 5,
-  interview2: 5,
-  interviewFinal: 5,
-  offer: 14,
+  screening: 2,
+  interview1: 3,
+  interview2: 3,
+  interviewFinal: 3,
+  offer: 3,
 }

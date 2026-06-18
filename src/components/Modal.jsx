@@ -16,7 +16,7 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-export default function Modal({ candidate, saving, onSave, onDelete, onClose }) {
+export default function Modal({ candidate, prefill, saving, onSave, onDelete, onClose }) {
   const isNew = !candidate
   const [form, setForm] = useState(EMPTY)
 
@@ -32,20 +32,18 @@ export default function Modal({ candidate, saving, onSave, onDelete, onClose }) 
         memo:          candidate.memo || '',
         nextAction:    candidate.nextAction || '',
       })
+    } else if (prefill) {
+      setForm({ ...EMPTY, ...prefill })
     } else {
       setForm(EMPTY)
     }
-  }, [candidate])
+  }, [candidate, prefill])
 
-  function set(field, value) {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
+  function set(field, value) { setForm(prev => ({ ...prev, [field]: value })) }
 
   function handleSave() {
-    if (!form.candidateName.trim()) {
-      alert('候補者名を入力してください')
-      return
-    }
+    if (!form.candidateName.trim()) { alert('候補者名を入力してください'); return }
+    if (!form.company.trim()) { alert('企業名を入力してください'); return }
     const statusChanged = !isNew && candidate.status !== form.status
     const record = {
       ...(candidate || {}),
@@ -60,45 +58,47 @@ export default function Modal({ candidate, saving, onSave, onDelete, onClose }) 
     <div style={overlay} onClick={onClose}>
       <div style={dialog} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{isNew ? '候補者を追加' : '候補者を編集'}</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#2d3748' }}>{isNew ? '候補者を追加' : '候補者を編集'}</h2>
           <button onClick={onClose} style={iconBtn}>×</button>
         </div>
 
-        <Label text="候補者名">
-          <input value={form.candidateName} onChange={e => set('candidateName', e.target.value)} style={input} placeholder="山田 太郎" />
-        </Label>
-
-        <Label text="選考企業">
-          <input value={form.company} onChange={e => set('company', e.target.value)} style={input} placeholder="株式会社〇〇" />
-        </Label>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Label text="担当CA" style={{ flex: 1 }}>
-            <select value={form.assignedCA} onChange={e => set('assignedCA', e.target.value)} style={input}>
+        <Row>
+          <Label text="求職者名">
+            <input value={form.candidateName} onChange={e => set('candidateName', e.target.value)} style={inp} placeholder="山田 太郎" />
+          </Label>
+          <Label text="担当CA">
+            <select value={form.assignedCA} onChange={e => set('assignedCA', e.target.value)} style={inp}>
               {CA_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </Label>
-          <Label text="紹介料（万円）" style={{ flex: 1 }}>
-            <input type="number" value={form.fee} onChange={e => set('fee', e.target.value)} style={input} placeholder="50" />
+        </Row>
+
+        <Row>
+          <Label text="選考企業">
+            <input value={form.company} onChange={e => set('company', e.target.value)} style={inp} placeholder="株式会社〇〇" />
           </Label>
-        </div>
+          <Label text="紹介料（万円）">
+            <input type="number" value={form.fee} onChange={e => set('fee', e.target.value)} style={inp} placeholder="50" />
+          </Label>
+        </Row>
 
-        <Label text="ステータス">
-          <select value={form.status} onChange={e => set('status', e.target.value)} style={input}>
-            {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
-        </Label>
-
-        <Label text="面接日">
-          <input type="date" value={form.interviewDate} onChange={e => set('interviewDate', e.target.value)} style={input} />
-        </Label>
+        <Row>
+          <Label text="ステータス">
+            <select value={form.status} onChange={e => set('status', e.target.value)} style={inp}>
+              {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </Label>
+          <Label text="面接日">
+            <input type="date" value={form.interviewDate} onChange={e => set('interviewDate', e.target.value)} style={inp} />
+          </Label>
+        </Row>
 
         <Label text="次回アクション">
-          <input value={form.nextAction} onChange={e => set('nextAction', e.target.value)} style={input} placeholder="例：金曜までに面接日程を確定する" />
+          <input value={form.nextAction} onChange={e => set('nextAction', e.target.value)} style={inp} placeholder="例：金曜までに面接日程を確定する" />
         </Label>
 
         <Label text="メモ">
-          <textarea value={form.memo} onChange={e => set('memo', e.target.value)} rows={4} style={{ ...input, resize: 'vertical' }} />
+          <textarea value={form.memo} onChange={e => set('memo', e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} />
         </Label>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
@@ -118,17 +118,21 @@ export default function Modal({ candidate, saving, onSave, onDelete, onClose }) 
   )
 }
 
-function Label({ text, children, style }) {
+function Label({ text, children }) {
   return (
-    <div style={{ marginBottom: 12, ...style }}>
+    <div style={{ marginBottom: 12, flex: 1 }}>
       <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>{text}</div>
       {children}
     </div>
   )
 }
 
+function Row({ children }) {
+  return <div style={{ display: 'flex', gap: 10 }}>{children}</div>
+}
+
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }
-const dialog = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 24 }
-const input = { width: '100%', padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13, boxSizing: 'border-box' }
-const btn = { padding: '7px 16px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, cursor: 'pointer' }
-const iconBtn = { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#718096', lineHeight: 1 }
+const dialog  = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: 24 }
+const inp     = { width: '100%', padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13, boxSizing: 'border-box', color: '#2d3748' }
+const btn     = { padding: '7px 16px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, cursor: 'pointer' }
+const iconBtn = { background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#a0aec0', lineHeight: 1 }
