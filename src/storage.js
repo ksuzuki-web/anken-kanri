@@ -79,6 +79,27 @@ export async function removeCandidate(id) {
   if (error) throw error
 }
 
+export async function loadLogs(candidateId, type) {
+  let q = supabase
+    .from('action_logs')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false })
+  if (type) q = q.eq('type', type)
+  const { data, error } = await q
+  if (error) throw error
+  return data.map(r => ({ id: r.id, type: r.type, content: r.content, createdAt: r.created_at }))
+}
+
+export async function addLog(candidateId, type, content) {
+  const { data, error } = await supabase
+    .from('action_logs')
+    .insert({ id: generateId(), candidate_id: candidateId, type, content })
+    .select().single()
+  if (error) throw error
+  return { id: data.id, type: data.type, content: data.content, createdAt: data.created_at }
+}
+
 export function subscribeToChanges(onChange) {
   const channel = supabase
     .channel('candidates')
