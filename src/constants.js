@@ -27,7 +27,7 @@ export const KANBAN_COLUMNS = [
 export const CLOSED_STATUSES = ['rejectedDoc', 'rejected1', 'rejectedFinal', 'withdrawn']
 
 // 担当CA（ユニットメンバー）。実運用では設定画面や認証情報から取得する想定の仮データ。
-export const CA_MEMBERS = ['Kei', '担当者A', '担当者B', '担当者C']
+export const CA_MEMBERS = ['鈴木', '高井', '藤島']
 
 // 停滞検知のしきい値（日数）。ステータスごとに「これ以上動きがなければ危険」という基準が違うため個別に設定。
 export const STALL_THRESHOLDS = {
