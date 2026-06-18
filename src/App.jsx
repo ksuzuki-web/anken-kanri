@@ -10,6 +10,7 @@ import {
   updateCandidate,
   deleteCandidate,
   subscribeToChanges,
+  generateId,
 } from './storage'
 
 export default function App() {
@@ -72,7 +73,7 @@ export default function App() {
     setSaving(true)
     try {
       if (isNew) {
-        const created = await createCandidate(record)
+        const created = await createCandidate({ ...record, id: generateId() })
         setCandidates((prev) => [...prev, created])
       } else {
         const updated = await updateCandidate(record)
