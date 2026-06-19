@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { loadLogs, addLog, saveCandidate } from '../storage'
 
-export default function LogModal({ candidate, type, suggestion, onUpdate, onClose }) {
+export default function LogModal({ candidate, type, suggestion, editable = true, onUpdate, onClose }) {
   const [logs, setLogs] = useState([])
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
@@ -55,8 +55,14 @@ export default function LogModal({ candidate, type, suggestion, onUpdate, onClos
           <div style={{ fontSize: 13, color: currentValue ? 'var(--text-2)' : 'var(--muted-2)' }}>{currentValue || '未設定'}</div>
         </div>
 
+        {!editable && (
+          <div style={{ background: 'var(--surface-sub)', border: '1px dashed var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+            🔒 {label}の入力は管理者のみが行えます。履歴の閲覧は可能です。
+          </div>
+        )}
+
         {/* AI提案 */}
-        {isAction && suggestion && (
+        {editable && isAction && suggestion && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
             <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -68,6 +74,7 @@ export default function LogModal({ candidate, type, suggestion, onUpdate, onClos
         )}
 
         {/* 新規入力 */}
+        {editable && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, letterSpacing: '0.04em' }}>新しい{label}を記録</div>
           <textarea
@@ -90,6 +97,7 @@ export default function LogModal({ candidate, type, suggestion, onUpdate, onClos
             </button>
           </div>
         </div>
+        )}
 
         {/* 履歴 */}
         <div>

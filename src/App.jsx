@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { KANBAN_STATUSES, CLOSED_STATUSES, STATUS_LABEL, CA_MEMBERS, STATUSES, STATUS_TODOS, INTERVIEW_STATUSES, WIN_COUNT_STATUSES } from './constants'
+import { KANBAN_STATUSES, CLOSED_STATUSES, STATUS_LABEL, CA_MEMBERS, STATUSES, STATUS_TODOS, INTERVIEW_STATUSES, WIN_COUNT_STATUSES, ADMIN_CA } from './constants'
 import { loadAll, insertCandidate, saveCandidate, removeCandidate, subscribeToChanges, generateId, loadTodos, upsertTodo, addChangeLog } from './storage'
 import { getAlert, getInconsistencies } from './alerts'
 import { suggestNextAction } from './suggestions'
@@ -10,6 +10,8 @@ import BoardView from './components/BoardView'
 import HistoryModal from './components/HistoryModal'
 import DigestModal from './components/DigestModal'
 import Confetti from './components/Confetti'
+import LoginGate from './components/LoginGate'
+import CaFeedback from './components/CaFeedback'
 
 const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 
@@ -78,13 +80,13 @@ function computeTodos(candidates, todosData) {
 }
 
 // 注力度：横幅を取らないよう「★N」のコンパクト表示。クリックでポップオーバーから選択
-function PriorityStars({ value, onChange }) {
+function PriorityStars({ value, onChange, disabled }) {
   const [open, setOpen] = useState(false)
   const color = PRI_COLOR[value] || 'var(--faint)'
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button onClick={() => setOpen(o => !o)} title={PRI_LABEL[value] || '未設定'}
-        style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 14, padding: '3px 9px', cursor: 'pointer', lineHeight: 1 }}>
+      <button onClick={() => !disabled && setOpen(o => !o)} title={disabled ? '閲覧のみ' : (PRI_LABEL[value] || '未設定')}
+        style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 14, padding: '3px 9px', cursor: disabled ? 'default' : 'pointer', lineHeight: 1, opacity: disabled ? 0.65 : 1 }}>
         <span style={{ fontSize: 12, color: value ? color : 'var(--faint)' }}>★</span>
         <span style={{ fontSize: 11, fontWeight: 700, color: value ? 'var(--text-2)' : 'var(--faint)' }}>{value || '－'}</span>
       </button>
@@ -105,7 +107,7 @@ function PriorityStars({ value, onChange }) {
 }
 
 // 面接日：年を省き月/日のみ表示。クリックで日付ピッカー編集
-function DateCell({ value, onChange, variant }) {
+function DateCell({ value, onChange, variant, disabled }) {
   const [edit, setEdit] = useState(false)
   const isM = variant === 'mobile'
   let label = isM ? '日付を選択' : '—'
@@ -113,18 +115,18 @@ function DateCell({ value, onChange, variant }) {
 
   // モバイルは横幅に余裕があるのでその場で入力欄に切替
   if (isM) {
-    if (edit) {
+    if (edit && !disabled) {
       return <input type="date" autoFocus value={value || ''} onChange={e => onChange(e.target.value)} onBlur={() => setEdit(false)} style={mInput} />
     }
     return (
-      <button onClick={() => setEdit(true)} style={{ ...mInput, textAlign: 'left', cursor: 'pointer', color: value ? 'var(--text)' : 'var(--muted-2)' }}>{label}</button>
+      <button onClick={() => !disabled && setEdit(true)} style={{ ...mInput, textAlign: 'left', cursor: disabled ? 'default' : 'pointer', color: value ? 'var(--text)' : 'var(--muted-2)' }}>{label}</button>
     )
   }
 
   // 一覧（グリッド）は列が狭いので、編集時は前面にポップオーバー表示して隣の列と被らないようにする
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => setEdit(true)} style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 13, cursor: 'pointer', textAlign: 'left', color: value ? 'var(--text-2)' : 'var(--faint)' }}>{label}</button>
+      <button onClick={() => !disabled && setEdit(true)} style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 13, cursor: disabled ? 'default' : 'pointer', textAlign: 'left', color: value ? 'var(--text-2)' : 'var(--faint)' }}>{label}</button>
       {edit && (
         <input
           type="date" autoFocus value={value || ''}
@@ -224,7 +226,7 @@ function TodoPanel({ items, onToggle }) {
   )
 }
 
-function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, onPriority, onInline, onLog, onDelete, onAddCompany }) {
+function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, editable, onPriority, onInline, onLog, onDelete, onAddCompany }) {
   const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
   const accent = caColorOf(ca)
   return (
@@ -234,24 +236,24 @@ function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, onPriorit
           {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#ef4444', fontSize: 9 }}>●</span>}
           {issues.length > 0 && <span title={issues.join('\n')} style={{ color: '#f59e0b', fontSize: 12, cursor: 'help' }}>⚠</span>}
           <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{name}</span>
-          <PriorityStars value={c.priority ?? 0} onChange={v => onPriority(name, v)} />
-          <button onClick={onAddCompany} style={{ fontSize: 11, padding: '2px 9px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>
-          <button onClick={() => onDelete(c)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 18 }}>×</button>
+          <PriorityStars value={c.priority ?? 0} onChange={v => onPriority(name, v)} disabled={!editable} />
+          {editable && <button onClick={onAddCompany} style={{ fontSize: 11, padding: '2px 9px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>}
+          {editable && <button onClick={() => onDelete(c)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 18 }}>×</button>}
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <span style={{ color: 'var(--muted-2)', fontSize: 12 }}>└ 同じ候補者の別企業</span>
-          <button onClick={() => onDelete(c)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 18 }}>×</button>
+          {editable && <button onClick={() => onDelete(c)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 18 }}>×</button>}
         </div>
       )}
 
-      <input value={c.company || ''} onChange={e => onInline(c, 'company', e.target.value)} placeholder="企業名" style={{ ...mInput, fontWeight: 600, fontSize: 15 }} />
+      <input value={c.company || ''} readOnly={!editable} onChange={e => onInline(c, 'company', e.target.value)} placeholder="企業名" style={{ ...mInput, fontWeight: 600, fontSize: 15, opacity: editable ? 1 : 0.7 }} />
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-        <select value={c.status} onChange={e => onInline(c, 'status', e.target.value)} style={{ ...mInput, flex: 1, background: ss.bg, color: ss.color, fontWeight: 700, appearance: 'none', WebkitAppearance: 'none', border: 'none' }}>
+        <select value={c.status} disabled={!editable} onChange={e => onInline(c, 'status', e.target.value)} style={{ ...mInput, flex: 1, background: ss.bg, color: ss.color, fontWeight: 700, appearance: 'none', WebkitAppearance: 'none', border: 'none', opacity: editable ? 1 : 0.8 }}>
           {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
-        <button onClick={() => onInline(c, 'winCandidate', !c.winCandidate)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 8, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--muted-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <button disabled={!editable} onClick={() => onInline(c, 'winCandidate', !c.winCandidate)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 8, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--muted-2)', fontSize: 13, fontWeight: 600, cursor: editable ? 'pointer' : 'default', whiteSpace: 'nowrap' }}>
           {c.winCandidate ? '✓' : '○'} 着地
         </button>
       </div>
@@ -260,11 +262,11 @@ function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, onPriorit
       <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={mLabel}>紹介料（万円）</div>
-          <input type="number" value={c.fee ?? ''} onChange={e => onInline(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} placeholder="0" style={mInput} />
+          <input type="number" value={c.fee ?? ''} readOnly={!editable} onChange={e => onInline(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} placeholder="0" style={{ ...mInput, opacity: editable ? 1 : 0.7 }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={mLabel}>面接日</div>
-          <DateCell value={c.interviewDate} onChange={v => onInline(c, 'interviewDate', v)} variant="mobile" />
+          <DateCell value={c.interviewDate} onChange={v => onInline(c, 'interviewDate', v)} variant="mobile" disabled={!editable} />
         </div>
       </div>
 
@@ -300,7 +302,7 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState(null)
   const [view, setView] = useState('list')
   const [search, setSearch] = useState('')
-  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('currentUser') || '')
+  const [currentUser, setCurrentUser] = useState(null) // ログイン時に必ず選択（ログ精度のため永続化しない）
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [digestOpen, setDigestOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -314,7 +316,8 @@ export default function App() {
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
 
-  useEffect(() => { localStorage.setItem('currentUser', currentUser) }, [currentUser])
+  const isAdmin = currentUser === ADMIN_CA
+  const canEdit = c => isAdmin || (c && c.assignedCA === currentUser)
 
   const load = useCallback(async () => {
     try {
@@ -337,14 +340,17 @@ export default function App() {
     loadTodos(ids).then(setTodos).catch(() => {})
   }, [candidates])
 
-  // 朝のダイジェストを1日1回自動表示
+  // 朝のダイジェストを1日1回自動表示（ログイン後）
   useEffect(() => {
-    if (loading || error) return
+    if (loading || error || !currentUser) return
     if (localStorage.getItem('digestDate') !== localToday()) {
       setDigestOpen(true)
       localStorage.setItem('digestDate', localToday())
     }
-  }, [loading, error])
+  }, [loading, error, currentUser])
+
+  // URLを開いた時点で「誰が操作するか」を必ず選択させる（ログ精度のため）
+  if (!currentUser) return <LoginGate onSelect={setCurrentUser} />
 
   const matchesSearch = c => {
     const q = search.trim().toLowerCase()
@@ -377,8 +383,12 @@ export default function App() {
     setSaving(true)
     try {
       const isNew = !form.id
-      const record = isNew ? { ...form, id: generateId() } : form
       const prev = isNew ? null : candidates.find(c => c.id === form.id)
+      if (!isAdmin) {
+        if (!isNew && prev && prev.assignedCA !== currentUser) { alert('自分の担当案件のみ編集できます'); setSaving(false); return }
+        form = { ...form, assignedCA: currentUser } // 担当は自分に固定
+      }
+      const record = isNew ? { ...form, id: generateId() } : form
       const saved = isNew ? await insertCandidate(record) : await saveCandidate(record)
       setCandidates(p => isNew ? [...p, saved] : p.map(c => c.id === saved.id ? saved : c))
       setModal(null)
@@ -395,6 +405,7 @@ export default function App() {
   }
 
   async function handleInlineChange(candidate, field, value) {
+    if (!canEdit(candidate)) { alert('自分の担当案件のみ編集できます'); return }
     if (candidate[field] === value) return
     const statusChanged = field === 'status' && candidate.status !== value
     const updated = {
@@ -411,6 +422,7 @@ export default function App() {
 
   async function handlePriorityChange(candidateName, value) {
     const toUpdate = candidates.filter(c => c.candidateName === candidateName)
+    if (toUpdate[0] && !canEdit(toUpdate[0])) { alert('自分の担当案件のみ編集できます'); return }
     const before = toUpdate[0]?.priority ?? 0
     setCandidates(prev => prev.map(c => c.candidateName === candidateName ? { ...c, priority: value } : c))
     if (toUpdate[0]) logChange(toUpdate[0], 'priority', before, value)
@@ -426,6 +438,7 @@ export default function App() {
   async function handleDelete(candidate) {
     const id = typeof candidate === 'string' ? candidate : candidate.id
     const target = candidates.find(c => c.id === id)
+    if (target && !canEdit(target)) { alert('自分の担当案件のみ削除できます'); return }
     if (!confirm('削除しますか？')) return
     try {
       await removeCandidate(id)
@@ -491,7 +504,7 @@ export default function App() {
               <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>{isMobile ? alertCount : `要注意 ${alertCount}件`}</span>
             </div>
           )}
-          <button className="btn-primary" onClick={() => setModal('new')} style={{ background: 'linear-gradient(135deg, var(--accent), var(--primary))', color: '#fff', border: 'none', borderRadius: 9, padding: isMobile ? '8px 14px' : '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(79,70,229,0.25)' }}>
+          <button className="btn-primary" onClick={() => setModal(isAdmin ? 'new' : { _prefill: { assignedCA: currentUser } })} style={{ background: 'linear-gradient(135deg, var(--accent), var(--primary))', color: '#fff', border: 'none', borderRadius: 9, padding: isMobile ? '8px 14px' : '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(79,70,229,0.25)' }}>
             {isMobile ? '+ 追加' : '+ 候補者を追加'}
           </button>
         </div>
@@ -519,12 +532,13 @@ export default function App() {
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* 担当者（誰が操作しているか） */}
-          <select value={currentUser} onChange={e => setCurrentUser(e.target.value)} title="操作する担当者（変更履歴に記録されます）"
-            style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: currentUser ? 'var(--text)' : 'var(--muted-2)', fontSize: 12.5, cursor: 'pointer', fontWeight: 600 }}>
-            <option value="">👤 担当者</option>
-            {CA_MEMBERS.map(m => <option key={m} value={m}>👤 {m}</option>)}
-          </select>
+          {/* 現在の担当者（クリックで切替＝再ログイン） */}
+          <button onClick={() => setCurrentUser(null)} title="担当者を切り替える"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px 5px 6px', border: '1px solid var(--border)', borderRadius: 20, background: 'var(--surface)', cursor: 'pointer' }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: `${caColorOf(currentUser)}22`, color: caColorOf(currentUser), display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 }}>{currentUser[0]}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{currentUser}{isAdmin ? ' 🔑' : ''}</span>
+            <span style={{ fontSize: 10, color: 'var(--muted-2)' }}>切替</span>
+          </button>
           <button onClick={() => setDigestOpen(true)} title="今日やること" className="icon-btn" style={iconBtn}>☀️</button>
           <button onClick={() => setHistoryOpen(true)} title="変更履歴" className="icon-btn" style={iconBtn}>🕐</button>
           <button onClick={() => setDark(d => !d)} title="ダークモード切替" className="icon-btn" style={iconBtn}>{dark ? '🌙' : '☀'}</button>
@@ -581,6 +595,9 @@ export default function App() {
             )}
           </div>
 
+          {/* 担当CD分析（特定CAを選択中のみ） */}
+          {caFilter !== 'all' && <CaFeedback ca={caFilter} candidates={candidates} />}
+
           {/* ボード表示 */}
           {view === 'board' ? (
             <BoardView
@@ -604,6 +621,7 @@ export default function App() {
           {visibleGroups.map(({ ca, candidateMap, uniqueCount, winCount, winFee }) => {
             const accent = caColorOf(ca)
             const totalApps = [...candidateMap.values()].reduce((s, r) => s + r.length, 0)
+            const canAddHere = isAdmin || ca === currentUser
             return (
               <div key={ca} className="card-hover" style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-card)', overflow: 'hidden', boxShadow: 'var(--card-shadow)' }}>
                 <div style={{ background: `linear-gradient(180deg, ${accent}1f, ${accent}0a)`, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border-card)', flexWrap: 'wrap' }}>
@@ -617,13 +635,13 @@ export default function App() {
                     </div>
                   )}
                   {candidateMap.size > 0 && <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{candidateMap.size}名 · {totalApps}社</span>}
-                  <button onClick={() => setModal({ _prefill: { assignedCA: ca } })} style={{ marginLeft: 'auto', fontSize: 12, padding: '5px 14px', background: 'var(--surface)', border: `1.5px solid ${accent}`, borderRadius: 7, cursor: 'pointer', color: accent, fontWeight: 700 }}>+ 追加</button>
+                  {canAddHere && <button className="pill-btn" onClick={() => setModal({ _prefill: { assignedCA: ca } })} style={{ marginLeft: 'auto', fontSize: 12, padding: '5px 14px', background: 'var(--surface)', border: `1.5px solid ${accent}`, borderRadius: 7, cursor: 'pointer', color: accent, fontWeight: 700 }}>+ 追加</button>}
                 </div>
 
                 {candidateMap.size === 0 ? (
                   <div style={{ padding: '24px', textAlign: 'center' }}>
                     <div style={{ color: 'var(--faint)', fontSize: 13, marginBottom: 10 }}>{search ? '検索に一致する候補者なし' : statusFilter ? `「${STATUS_LABEL[statusFilter]}」の候補者なし` : '候補者なし'}</div>
-                    {!statusFilter && !search && <button onClick={() => setModal({ _prefill: { assignedCA: ca } })} style={{ fontSize: 12, padding: '6px 18px', background: 'transparent', border: '1.5px dashed var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--muted-2)' }}>+ 候補者を追加</button>}
+                    {!statusFilter && !search && canAddHere && <button onClick={() => setModal({ _prefill: { assignedCA: ca } })} style={{ fontSize: 12, padding: '6px 18px', background: 'transparent', border: '1.5px dashed var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--muted-2)' }}>+ 候補者を追加</button>}
                   </div>
                 ) : isMobile ? (
                   <div>
@@ -631,6 +649,7 @@ export default function App() {
                       rows.map((c, idx) => (
                         <MobileCard key={c.id} c={c} isFirst={idx === 0} name={name} ca={ca}
                           alert={getAlert(c)} issues={getInconsistencies(c)} suggestion={suggestNextAction(c)}
+                          editable={canEdit(c)}
                           onPriority={handlePriorityChange} onInline={handleInlineChange}
                           onLog={(cand, type, sug) => setLogModal({ candidate: cand, type, suggestion: sug })}
                           onDelete={handleDelete}
@@ -656,38 +675,39 @@ export default function App() {
                           const isFirst = idx === 0
                           const isLast = idx === rows.length - 1
                           const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
+                          const editable = canEdit(c)
                           return (
                             <div key={c.id} className="list-row" style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'center', columnGap: 10, padding: '8px 14px', borderBottom: isLast ? '1px solid var(--border-card)' : '1px solid var(--border-soft)', borderLeft: `3px solid ${isFirst ? accent : 'transparent'}`, background: alert.isAlert ? 'var(--alert-row)' : undefined }}>
-                              <div>{isFirst && <PriorityStars value={c.priority ?? 0} onChange={v => handlePriorityChange(name, v)} />}</div>
+                              <div>{isFirst && <PriorityStars value={c.priority ?? 0} onChange={v => handlePriorityChange(name, v)} disabled={!editable} />}</div>
                               <div style={{ minWidth: 0 }}>
                                 {isFirst ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                     {alert.isAlert && <span title={alert.reasons.join(' / ')} style={{ color: '#ef4444', fontSize: 9, cursor: 'help' }}>●</span>}
                                     {issues.length > 0 && <span title={issues.join('\n')} style={{ color: '#f59e0b', fontSize: 11, cursor: 'help' }}>⚠</span>}
                                     <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{name}</span>
-                                    <button className="pill-btn" onClick={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })} style={{ fontSize: 10, padding: '1px 7px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>
+                                    {editable && <button className="pill-btn" onClick={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })} style={{ fontSize: 10, padding: '1px 7px', background: `${accent}22`, border: 'none', borderRadius: 20, cursor: 'pointer', color: accent, fontWeight: 700 }}>+企業</button>}
                                   </div>
                                 ) : (
                                   <span style={{ color: 'var(--faint)', fontSize: 12, paddingLeft: 4 }}>└</span>
                                 )}
                               </div>
                               <div style={{ minWidth: 0 }}>
-                                <input className="cell-input" value={c.company || ''} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={{ ...inputSt, width: '100%' }} placeholder="企業名" />
+                                <input className="cell-input" value={c.company || ''} readOnly={!editable} onChange={e => handleInlineChange(c, 'company', e.target.value)} style={{ ...inputSt, width: '100%', opacity: editable ? 1 : 0.65 }} placeholder="企業名" />
                               </div>
                               <div style={{ minWidth: 0 }}>
-                                <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} style={{ ...inputSt, width: '100%', background: ss.bg, color: ss.color, fontWeight: 700, fontSize: 12, borderRadius: 20, paddingLeft: 10, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+                                <select value={c.status} disabled={!editable} onChange={e => handleInlineChange(c, 'status', e.target.value)} style={{ ...inputSt, width: '100%', background: ss.bg, color: ss.color, fontWeight: 700, fontSize: 12, borderRadius: 20, paddingLeft: 10, cursor: editable ? 'pointer' : 'default', appearance: 'none', WebkitAppearance: 'none', opacity: editable ? 1 : 0.8 }}>
                                   {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                                 </select>
                                 {c.statusChangedAt && <div style={{ fontSize: 10, color: 'var(--muted-2)', marginTop: 3, paddingLeft: 2 }}>{fmtDt(c.statusChangedAt)}</div>}
                               </div>
                               <div style={{ textAlign: 'center' }}>
-                                <button className="pill-btn" onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="着地候補にマーク"
-                                  style={{ width: 28, height: 28, border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 7, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--faint)', fontSize: 13, cursor: 'pointer' }}>{c.winCandidate ? '✓' : '○'}</button>
+                                <button className="pill-btn" disabled={!editable} onClick={() => handleInlineChange(c, 'winCandidate', !c.winCandidate)} title="着地候補にマーク"
+                                  style={{ width: 28, height: 28, border: `1.5px solid ${c.winCandidate ? '#16a34a' : 'var(--border)'}`, borderRadius: 7, background: c.winCandidate ? 'rgba(34,197,94,0.16)' : 'var(--surface)', color: c.winCandidate ? '#16a34a' : 'var(--faint)', fontSize: 13, cursor: editable ? 'pointer' : 'default' }}>{c.winCandidate ? '✓' : '○'}</button>
                               </div>
                               <div>
-                                <input className="cell-input" type="number" value={c.fee ?? ''} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: '100%', textAlign: 'right' }} placeholder="—" />
+                                <input className="cell-input" type="number" value={c.fee ?? ''} readOnly={!editable} onChange={e => handleInlineChange(c, 'fee', e.target.value === '' ? null : Number(e.target.value))} style={{ ...inputSt, width: '100%', textAlign: 'right', opacity: editable ? 1 : 0.65 }} placeholder="—" />
                               </div>
-                              <div><DateCell value={c.interviewDate} onChange={v => handleInlineChange(c, 'interviewDate', v)} /></div>
+                              <div><DateCell value={c.interviewDate} onChange={v => handleInlineChange(c, 'interviewDate', v)} disabled={!editable} /></div>
                               <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => setLogModal({ candidate: c, type: 'action', suggestion: sug })}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: c.nextAction ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nextAction || '—'}</span>
@@ -701,9 +721,9 @@ export default function App() {
                                 </div>
                               </div>
                               <div style={{ textAlign: 'center' }}>
-                                <button onClick={() => handleDelete(c)} title="削除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15, padding: '2px 4px', borderRadius: 4 }}
+                                {editable && <button onClick={() => handleDelete(c)} title="削除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15, padding: '2px 4px', borderRadius: 4 }}
                                   onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
-                                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>
+                                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>}
                               </div>
                             </div>
                           )
@@ -729,22 +749,23 @@ export default function App() {
                     <tbody>
                       {closedShown.map(c => {
                         const ss = STATUS_STYLE[c.status] || STATUS_STYLE.withdrawn
+                        const editable = canEdit(c)
                         return (
                           <tr key={c.id} style={{ borderBottom: '1px solid var(--border-soft)' }}>
                             <td style={{ ...td, color: 'var(--muted)', fontWeight: 500 }}>{c.candidateName}</td>
                             <td style={{ ...td, color: 'var(--muted-2)' }}>{c.company}</td>
                             <td style={td}>
-                              <select value={c.status} onChange={e => handleInlineChange(c, 'status', e.target.value)} title="ステータスを選考中に戻すとリストに復活します"
-                                style={{ ...inputSt, width: 'auto', background: ss.bg, color: ss.color, fontWeight: 600, fontSize: 11, borderRadius: 20, padding: '2px 10px', cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+                              <select value={c.status} disabled={!editable} onChange={e => handleInlineChange(c, 'status', e.target.value)} title={editable ? 'ステータスを選考中に戻すとリストに復活します' : '閲覧のみ'}
+                                style={{ ...inputSt, width: 'auto', background: ss.bg, color: ss.color, fontWeight: 600, fontSize: 11, borderRadius: 20, padding: '2px 10px', cursor: editable ? 'pointer' : 'default', appearance: 'none', WebkitAppearance: 'none', opacity: editable ? 1 : 0.8 }}>
                                 {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                               </select>
                             </td>
                             <td style={{ ...td, color: 'var(--muted-2)', fontSize: 12 }}>{c.assignedCA}</td>
                             <td style={{ ...td, color: 'var(--muted-2)', fontSize: 12 }}>{c.memo}</td>
                             <td style={{ ...td, textAlign: 'center' }}>
-                              <button onClick={() => handleDelete(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15 }}
+                              {editable && <button onClick={() => handleDelete(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15 }}
                                 onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
-                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--faint)' }}>×</button>}
                             </td>
                           </tr>
                         )
@@ -771,14 +792,16 @@ export default function App() {
 
       {/* Modals */}
       {modal !== null && (
-        <Modal candidate={modal === 'new' ? null : (modal._prefill ? null : modal)} prefill={modal._prefill || null} saving={saving} onSave={handleSave} onDelete={c => handleDelete(c)} onClose={() => setModal(null)} />
+        <Modal candidate={modal === 'new' ? null : (modal._prefill ? null : modal)} prefill={modal._prefill || null} saving={saving} lockCA={!isAdmin} lockNextAction={!isAdmin} onSave={handleSave} onDelete={c => handleDelete(c)} onClose={() => setModal(null)} />
       )}
       {logModal !== null && (
-        <LogModal candidate={logModal.candidate} type={logModal.type} suggestion={logModal.suggestion} onUpdate={handleLogUpdate} onClose={() => setLogModal(null)} />
+        <LogModal candidate={logModal.candidate} type={logModal.type} suggestion={logModal.suggestion}
+          editable={logModal.type === 'action' ? isAdmin : canEdit(logModal.candidate)}
+          onUpdate={handleLogUpdate} onClose={() => setLogModal(null)} />
       )}
       {historyOpen && <HistoryModal onClose={() => setHistoryOpen(false)} />}
       {digestOpen && (
-        <DigestModal candidates={caActive} todoPending={todoItems.filter(t => !t.isDone)}
+        <DigestModal candidates={active.filter(c => c.assignedCA === currentUser)} todoPending={computeTodos(active.filter(c => c.assignedCA === currentUser), todos).filter(t => !t.isDone)}
           onOpenCandidate={c => { setDigestOpen(false); openCandidate(c) }} onClose={() => setDigestOpen(false)} />
       )}
     </div>

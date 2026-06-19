@@ -16,7 +16,7 @@ function now() {
   return new Date().toISOString()
 }
 
-export default function Modal({ candidate, prefill, saving, onSave, onDelete, onClose }) {
+export default function Modal({ candidate, prefill, saving, lockCA, lockNextAction, onSave, onDelete, onClose }) {
   const isNew = !candidate
   const [form, setForm] = useState(EMPTY)
 
@@ -67,9 +67,16 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
             <input value={form.candidateName} onChange={e => set('candidateName', e.target.value)} style={inp} placeholder="山田 太郎" />
           </Label>
           <Label text="担当CA">
-            <select value={form.assignedCA} onChange={e => set('assignedCA', e.target.value)} style={inp}>
-              {CA_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+            {lockCA ? (
+              <div style={{ ...inp, display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface-sub)', color: 'var(--muted)' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-2)' }}>{form.assignedCA}</span>
+                <span style={{ fontSize: 11 }}>🔒 自分の担当に固定</span>
+              </div>
+            ) : (
+              <select value={form.assignedCA} onChange={e => set('assignedCA', e.target.value)} style={inp}>
+                {CA_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            )}
           </Label>
         </Row>
 
@@ -94,7 +101,11 @@ export default function Modal({ candidate, prefill, saving, onSave, onDelete, on
         </Row>
 
         <Label text="次回アクション">
-          <input value={form.nextAction} onChange={e => set('nextAction', e.target.value)} style={inp} placeholder="例：金曜までに面接日程を確定する" />
+          {lockNextAction ? (
+            <div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-sub)', color: 'var(--muted)', fontSize: 12 }}>🔒 次回アクションの入力は管理者のみ</div>
+          ) : (
+            <input value={form.nextAction} onChange={e => set('nextAction', e.target.value)} style={inp} placeholder="例：金曜までに面接日程を確定する" />
+          )}
         </Label>
 
         <Label text="メモ">

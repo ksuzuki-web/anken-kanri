@@ -1,5 +1,9 @@
 export const CA_MEMBERS = ['鈴木', '高井', '藤島']
 
+// 管理者（全権限）と簡易パスコード。※フロント実装のため誤操作防止レベルの簡易ロック
+export const ADMIN_CA = '鈴木'
+export const ADMIN_PASSCODE = '1839'
+
 export const STATUSES = [
   { key: 'lead',           label: 'リード' },
   { key: 'screening',      label: '書類選考' },
