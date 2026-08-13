@@ -1,0 +1,58 @@
+# Chatworkアシスタントの自動実行
+# 必要なSecrets（リポジトリの Settings → Secrets and variables → Actions で登録）:
+#   CHATWORK_API_TOKEN      … 必須。Chatworkの右上プロフィール→サービス連携→APIトークン
+#   VITE_SUPABASE_URL       … 推奨。データ永続化（supabase_assistant.sql 実行済みであること）
+#   VITE_SUPABASE_ANON_KEY  … 推奨。同上
+#   ANTHROPIC_API_KEY       … 任意。AI要約・ナレッジ学習を有効化
+#   CHATWORK_BRIEF_ROOM_ID  … 任意。ブリーフの投稿先ルームID（未設定ならマイチャット）
+name: Chatwork Assistant
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: '実行内容'
+        type: choice
+        options: [brief, sync, learn]
+        default: brief
+  schedule:
+    # UTC表記（日本時間-9時間）
+    - cron: '0 22 * * 0-4'   # 平日 7:00 JST … 同期＋朝ブリーフ投稿
+    - cron: '0 2,5,8 * * 1-5' # 平日 11/14/17時 JST … 同期のみ（履歴の取りこぼし防止）
+    - cron: '0 21 * * 5'      # 土曜 6:00 JST … 週次ナレッジ学習
+
+permissions:
+  contents: read
+
+concurrency: chatwork-assistant
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      CHATWORK_API_TOKEN: ${{ secrets.CHATWORK_API_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      CHATWORK_BRIEF_ROOM_ID: ${{ secrets.CHATWORK_BRIEF_ROOM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 依存パッケージ不要（npm install なしで動く）
+      - name: Chatwork同期
+        run: node assistant/sync.js
+
+      - name: 朝ブリーフ生成・投稿
+        if: github.event.schedule == '0 22 * * 0-4' || (github.event_name == 'workflow_dispatch' && inputs.task == 'brief')
+        run: node assistant/brief.js --post
+
+      - name: 週次ナレッジ学習
+        if: github.event.schedule == '0 21 * * 5' || (github.event_name == 'workflow_dispatch' && inputs.task == 'learn')
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            node assistant/learn.js
+          else
+            echo "ANTHROPIC_API_KEY が未設定のためナレッジ学習をスキップしました"
+          fi

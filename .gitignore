@@ -2,3 +2,7 @@ node_modules
 dist
 .env
 .env.local
+
+# Chatworkアシスタントのローカルデータ（社内チャットのログ。リポジトリには含めない）
+data/
+knowledge/

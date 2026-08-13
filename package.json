@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cw:sync": "node assistant/sync.js",
+    "cw:brief": "node assistant/brief.js",
+    "cw:brief:post": "node assistant/brief.js --post",
+    "cw:ask": "node assistant/ask.js",
+    "cw:learn": "node assistant/learn.js",
+    "cw:test": "node assistant/test/selftest.js"
   },
   "dependencies": {
     "react": "^18.3.1",
