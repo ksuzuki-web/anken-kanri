@@ -61,7 +61,7 @@ export function weeklyMovements({ candidates, history = [], ca = 'all', start, e
   }
 }
 
-export function buildWeeklyReport({ candidates, history = [], fc, targets, ca = 'all', today = new Date(), offsetWeeks = 0 }) {
+export function buildWeeklyReport({ candidates, history = [], fc, targets, diagnosis = [], ca = 'all', today = new Date(), offsetWeeks = 0 }) {
   const { start, end } = weekRange(today, offsetWeeks)
   const scoped = candidates.filter(c => ca === 'all' || c.assignedCA === ca)
   const active = scoped.filter(c => !CLOSED_STATUSES.includes(c.status))
@@ -123,6 +123,17 @@ export function buildWeeklyReport({ candidates, history = [], fc, targets, ca = 
   } else L.push('・なし')
   L.push('')
 
+  // 持ち駒アラート
+  const thin = diagnosis.filter(d => (ca === 'all' || d.ca === ca) && d.level === 'low')
+  const reprop = diagnosis.filter(d => (ca === 'all' || d.ca === ca) && d.level === 'zero')
+  if (thin.length || reprop.length) {
+    L.push(`■ 持ち駒アラート（持ち駒不足 ${thin.length}名・再提案 ${reprop.length}名）`)
+    for (const d of thin.slice(0, 6)) L.push(`・${d.name}様：持ち駒${d.activeRows.length}社・決定確率${Math.round(d.P * 100)}%${d.need ? `（あと${d.need}社の書類提出で${Math.round(d.reach * 100)}%）` : ''}${ca === 'all' ? `［${d.ca}］` : ''}`)
+    if (thin.length > 6) L.push(`・ほか持ち駒不足${thin.length - 6}名`)
+    if (reprop.length) L.push(`・全社見送りで再提案が必要：${reprop.slice(0, 5).map(d => `${d.name}様`).join('、')}${reprop.length > 5 ? ` ほか${reprop.length - 5}名` : ''}`)
+    L.push('')
+  }
+
   // 担当別
   if (ca === 'all') {
     L.push(`■ 担当別（${monthLabel(monthKey, today)}）`)
@@ -142,6 +153,7 @@ export function buildWeeklyReport({ candidates, history = [], fc, targets, ca = 
   if (bRows.length) focus.push(`Bヨミ${bRows.length}件の確度アップ（最終面接の対策・意向の再確認）`)
   if (upcoming.length) focus.push(`面接${upcoming.length}件の事前対策と、実施後24時間以内の合否・意向回収`)
   if (stalled.length) focus.push(`停滞${stalled.length}件への連絡・状況確認`)
+  if (thin.length + reprop.length) focus.push(`持ち駒不足・再提案の${thin.length + reprop.length}名に、通りやすい企業への並行応募を提案`)
   if (sm.gap > 0) focus.push(`目標まであと${yen(sm.gap)}。来月以降に向けて書類提出数の積み増し`)
   if (focus.length) {
     L.push(`■ ${offsetWeeks === 0 ? '来週' : '今週'}の注力`)

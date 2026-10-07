@@ -22,6 +22,8 @@ export const GATES = [
 ]
 // 実績を何件分の重みで目安に寄せるか（少数データで数字が暴れないように）
 const PRIOR_WEIGHT = 5
+// 企業別の通過率は、ユニット全体の通過率に何件分の重みで寄せるか
+const COMPANY_PRIOR_WEIGHT = 4
 
 // 現在ステータスから成約までに越える関門
 const GATE_PATH = {
@@ -201,6 +203,45 @@ export function computeGateRates(candidates, timelines = new Map(), today = new 
   return res
 }
 
+// ---------- 企業別の通過率 ----------
+// 表記ゆれ（株式会社・(株)・全角半角・空白）を吸収した企業キー
+export function companyKey(name) {
+  return (name || '')
+    .normalize('NFKC')
+    .replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)|\(同\)/g, '')
+    .replace(/[\s・,.、。]/g, '')
+    .toLowerCase()
+}
+
+// 企業ごとに関門の通過実績を数え、ユニット全体の通過率に寄せて推定する
+export function computeCompanyRates(candidates, timelines, today, unitRates) {
+  const map = new Map()
+  for (const c of candidates) {
+    const key = companyKey(c.company)
+    if (!key) continue
+    if (!map.has(key)) map.set(key, Object.fromEntries(GATES.map(g => [g.key, { pass: 0, fail: 0 }])))
+    const t = map.get(key)
+    const j = analyzeJourney(c, timelines.get(c.id) || [], today)
+    for (const g of GATES) {
+      const o = gateOutcome(g.key, j)
+      if (o) t[g.key][o]++
+    }
+  }
+  for (const t of map.values()) {
+    for (const g of GATES) {
+      const r = t[g.key]
+      r.n = r.pass + r.fail
+      r.p = (r.pass + unitRates[g.key].p * COMPANY_PRIOR_WEIGHT) / (r.n + COMPANY_PRIOR_WEIGHT)
+    }
+  }
+  return map
+}
+
+// ステータスから成約までの確率（rates は {gateKey: {p}}）
+export function pathProb(status, rates) {
+  return (GATE_PATH[status] || GATE_PATH.lead).reduce((p, g) => p * rates[g].p, 1)
+}
+
 // ---------- ステージ滞在日数 ----------
 export function computeStageDays(candidates, timelines = new Map()) {
   const samples = {}
@@ -248,9 +289,16 @@ function forecastRow(c, ctx) {
     return { ...base, won: true, prob: 1, baseProb: 1, factors: [], ev: feeUsed, rank: 'won', closeDate, monthKey: monthKeyOf(closeDate), expectedDays: 0 }
   }
 
-  const path = GATE_PATH[c.status] || GATE_PATH.lead
-  const baseProb = path.reduce((p, g) => p * ctx.rates[g].p, 1)
+  const baseProb = pathProb(c.status, ctx.rates)
   const factors = []
+  // 企業ごとの通過実績による補正（ユニット平均との比）
+  const cRates = ctx.companyRates.get(companyKey(c.company))
+  if (cRates && baseProb > 0) {
+    const ratio = Math.min(2, Math.max(0.4, pathProb(c.status, cRates) / baseProb))
+    if (Math.abs(ratio - 1) >= 0.15) {
+      factors.push({ label: '企業実績', mult: Math.round(ratio * 100) / 100, tone: ratio > 1 ? 'pos' : 'neg' })
+    }
+  }
   if (isStale(c, ctx.today)) factors.push(ADJUST.stale)
   else if (getAlert(c).isAlert) factors.push(ADJUST.stalled)
   if (c.winCandidate) factors.push(ADJUST.winCand)
@@ -286,7 +334,8 @@ export function buildForecast(candidates, history = [], today = new Date()) {
   const stageDays = computeStageDays(candidates, timelines)
   const fees = candidates.map(c => Number(c.fee)).filter(f => f > 0)
   const avgFee = fees.length ? Math.round(sum(fees, f => f) / fees.length) : 80
-  const ctx = { rates, stageDays, avgFee, today: startOfDay(today), historyCount: history.length }
+  const companyRates = computeCompanyRates(candidates, timelines, today, rates)
+  const ctx = { rates, companyRates, timelines, stageDays, avgFee, today: startOfDay(today), historyCount: history.length }
   const rows = candidates.map(c => forecastRow(c, ctx)).filter(Boolean)
   return { ...ctx, rows }
 }

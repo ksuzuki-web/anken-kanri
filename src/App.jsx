@@ -16,7 +16,9 @@ import YomiView from './components/YomiView'
 import MessageComposer from './components/MessageComposer'
 import WeeklyReportModal from './components/WeeklyReportModal'
 import WhatsNewModal, { WHATS_NEW_VERSION } from './components/WhatsNewModal'
+import StrategyView from './components/StrategyView'
 import { buildForecast, summarize, monthKeyOf, monthLabel } from './forecast'
+import { buildCompanyInsights, buildCandidateDiagnosis } from './matching'
 
 const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 
@@ -369,7 +371,7 @@ export default function App() {
     loadSetting('monthly_targets').then(r => { setTargets(r.value || {}); setTargetsShared(r.shared) }).catch(() => {})
   }, [])
   useEffect(() => { refreshYomiData() }, [refreshYomiData])
-  useEffect(() => { if (view === 'yomi' || reportOpen) refreshYomiData() }, [view, reportOpen, refreshYomiData])
+  useEffect(() => { if (view === 'yomi' || view === 'strategy' || reportOpen) refreshYomiData() }, [view, reportOpen, refreshYomiData])
 
   // 新機能のお知らせ（ログイン後に1回だけ）
   useEffect(() => {
@@ -378,6 +380,8 @@ export default function App() {
   }, [loading, error, currentUser])
 
   const forecast = useMemo(() => buildForecast(candidates, history), [candidates, history])
+  const companyInsights = useMemo(() => buildCompanyInsights(candidates, forecast), [candidates, forecast])
+  const diagnosis = useMemo(() => buildCandidateDiagnosis(candidates, forecast, companyInsights), [candidates, forecast, companyInsights])
 
   async function handleSaveTargets(next) {
     setTargets(next)
@@ -388,7 +392,7 @@ export default function App() {
   function closeWhatsNew(goYomi) {
     try { localStorage.setItem('whatsNew', WHATS_NEW_VERSION) } catch (_) { /* noop */ }
     setWhatsNewOpen(false)
-    if (goYomi) { setDigestOpen(false); setView('yomi') }
+    if (goYomi) { setDigestOpen(false); setView(goYomi === 'strategy' ? 'strategy' : 'yomi') }
   }
 
   // URLを開いた時点で「誰が操作するか」を必ず選択させる（ログ精度のため）
@@ -574,7 +578,7 @@ export default function App() {
 
         {/* リスト / ボード切替 */}
         <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3 }}>
-          {[['list', '☰ リスト'], ['board', '▦ ボード'], ['yomi', '🎯 ヨミ']].map(([v, lbl]) => (
+          {[['list', '☰ リスト'], ['board', '▦ ボード'], ['yomi', '🎯 ヨミ'], ['strategy', '🧭 作戦']].map(([v, lbl]) => (
             <button key={v} onClick={() => setView(v)} style={{ border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: view === v ? 'var(--surface)' : 'transparent', color: view === v ? 'var(--text)' : 'var(--muted)', boxShadow: view === v ? 'var(--card-shadow)' : 'none' }}>{lbl}</button>
           ))}
         </div>
@@ -645,7 +649,7 @@ export default function App() {
           </div>
 
           {/* 担当CD分析（特定CAを選択中のみ） */}
-          {caFilter !== 'all' && view !== 'yomi' && <CaFeedback ca={caFilter} candidates={candidates} />}
+          {caFilter !== 'all' && view !== 'yomi' && view !== 'strategy' && <CaFeedback ca={caFilter} candidates={candidates} />}
 
           {/* ヨミ管理 */}
           {view === 'yomi' ? (
@@ -654,6 +658,14 @@ export default function App() {
               canEditTargets={isAdmin} onSaveTargets={handleSaveTargets}
               caFilter={caFilter} currentUser={currentUser}
               onOpenCandidate={openCandidate} onCompose={setComposeFor}
+              isMobile={isMobile}
+            />
+          ) : view === 'strategy' ? (
+            <StrategyView
+              companies={companyInsights} diagnosis={diagnosis} fc={forecast}
+              caFilter={caFilter} currentUser={currentUser} isAdmin={isAdmin}
+              onCompose={setComposeFor} onOpenCandidate={openCandidate}
+              onAddApplication={prefill => setModal({ _prefill: prefill })}
               isMobile={isMobile}
             />
           ) : view === 'board' ? (
@@ -841,8 +853,8 @@ export default function App() {
           )}
         </div>
 
-        {/* Right sidebar（ヨミ画面では非表示にして横幅を使う） */}
-        {view !== 'yomi' && <div style={isMobile
+        {/* Right sidebar（ヨミ・作戦画面では非表示にして横幅を使う） */}
+        {view !== 'yomi' && view !== 'strategy' && <div style={isMobile
           ? { width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }
           : { width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 120, maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' }}>
           <FunnelChart candidates={[...caActive, ...caClosed]} />
@@ -863,13 +875,15 @@ export default function App() {
       {historyOpen && <HistoryModal onClose={() => setHistoryOpen(false)} />}
       {composeFor && <MessageComposer candidate={composeFor} sender={currentUser} onClose={() => setComposeFor(null)} />}
       {reportOpen && (
-        <WeeklyReportModal candidates={candidates} history={history} fc={forecast} targets={targets}
+        <WeeklyReportModal candidates={candidates} history={history} fc={forecast} targets={targets} diagnosis={diagnosis}
           defaultCa={isAdmin ? caFilter : currentUser} onClose={() => setReportOpen(false)} />
       )}
-      {whatsNewOpen && <WhatsNewModal onClose={() => closeWhatsNew(false)} onGoYomi={() => closeWhatsNew(true)} />}
+      {whatsNewOpen && <WhatsNewModal onClose={() => closeWhatsNew(false)} onGoYomi={() => closeWhatsNew('yomi')} onGoStrategy={() => closeWhatsNew('strategy')} />}
       {digestOpen && (
         <DigestModal candidates={active.filter(c => c.assignedCA === currentUser)} todoPending={computeTodos(active.filter(c => c.assignedCA === currentUser), todos).filter(t => !t.isDone)}
           yomi={myYomi} onOpenYomi={() => { setDigestOpen(false); setCaFilter(currentUser); setView('yomi') }}
+          lowStock={diagnosis.filter(d => d.ca === currentUser && (d.level === 'low' || d.level === 'zero'))}
+          onOpenStrategy={() => { setDigestOpen(false); setCaFilter(currentUser); setView('strategy') }}
           onOpenCandidate={c => { setDigestOpen(false); openCandidate(c) }} onClose={() => setDigestOpen(false)} />
       )}
     </div>

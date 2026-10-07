@@ -16,7 +16,7 @@ function greeting() {
   return 'お疲れさまです'
 }
 
-export default function DigestModal({ candidates, todoPending, yomi, onOpenYomi, onOpenCandidate, onClose }) {
+export default function DigestModal({ candidates, todoPending, yomi, onOpenYomi, lowStock = [], onOpenStrategy, onOpenCandidate, onClose }) {
   const today = localToday()
   const interviews = candidates.filter(c => c.interviewDate === today)
   const alerts = candidates.filter(c => getAlert(c).isAlert)
@@ -80,6 +80,22 @@ export default function DigestModal({ candidates, todoPending, yomi, onOpenYomi,
             ))}
             {issues.length > 8 && <More n={issues.length - 8} />}
           </Section>
+
+          {lowStock.length > 0 && (
+            <Section icon="🧩" title="持ち駒が少ない求職者" count={lowStock.length} empty="">
+              {lowStock.slice(0, 4).map(d => (
+                <Row key={d.key} onClick={onOpenStrategy}>
+                  <b>{d.name}</b>
+                  <span style={sub}>
+                    {d.level === 'zero'
+                      ? '全社見送り。新しい求人の提案を'
+                      : `持ち駒${d.activeRows.length}社・決定確率${Math.round(d.P * 100)}%${d.need ? `。あと${d.need}社の書類提出で${Math.round(d.reach * 100)}%` : ''}`}
+                  </span>
+                </Row>
+              ))}
+              {lowStock.length > 4 && <More n={lowStock.length - 4} />}
+            </Section>
+          )}
 
           {suggestions.length > 0 && (
             <Section icon="💡" title="おすすめアクション" count={suggestions.length} empty="">

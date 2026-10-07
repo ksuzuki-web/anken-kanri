@@ -3,12 +3,12 @@ import { CA_MEMBERS } from '../constants'
 import { buildWeeklyReport, weekRange } from '../report'
 
 // 週次レポート：チャットやメールにそのまま貼れる週報を自動生成
-export default function WeeklyReportModal({ candidates, history, fc, targets, defaultCa = 'all', onClose }) {
+export default function WeeklyReportModal({ candidates, history, fc, targets, diagnosis, defaultCa = 'all', onClose }) {
   const [ca, setCa] = useState(defaultCa)
   const [week, setWeek] = useState(0)
   const generated = useMemo(
-    () => buildWeeklyReport({ candidates, history, fc, targets, ca, offsetWeeks: week, today: fc.today }),
-    [candidates, history, fc, targets, ca, week],
+    () => buildWeeklyReport({ candidates, history, fc, targets, diagnosis, ca, offsetWeeks: week, today: fc.today }),
+    [candidates, history, fc, targets, diagnosis, ca, week],
   )
   const [text, setText] = useState(generated)
   const [copied, setCopied] = useState(false)
