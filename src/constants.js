@@ -51,3 +51,6 @@ export const LOSS_POINT_LABEL = {
   rejectedFinal: '最終落ち',
   withdrawn:     '離脱',
 }
+
+// 連絡文・レポートで使う屋号
+export const BRAND_NAME = '宅建Jobエージェント'

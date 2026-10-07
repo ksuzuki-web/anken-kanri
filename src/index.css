@@ -32,6 +32,19 @@
 
   --radius-md: 10px;
   --radius-lg: 14px;
+
+  /* ヨミ管理：確定（成約済み）とヨミ期待値。配色はCVD検証済み */
+  --yomi-confirmed: #059669;
+  --yomi-expected: #6366f1;
+  --yomi-track: #eef2f8;
+  --rank-a-bg: #4338ca; --rank-a-fg: #ffffff;
+  --rank-b-bg: #6366f1; --rank-b-fg: #ffffff;
+  --rank-c-bg: #c7d2fe; --rank-c-fg: #312e81;
+  --rank-d-bg: #eef2f8; --rank-d-fg: #6b7689;
+  --rank-won-bg: #d1fae5; --rank-won-fg: #065f46;
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
 }
 
 html[data-theme="dark"] {
@@ -62,6 +75,18 @@ html[data-theme="dark"] {
   --card-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 40px rgba(0, 0, 0, 0.55);
   --overlay: rgba(2, 6, 16, 0.66);
   --alert-row: #2a1d22;
+
+  --yomi-confirmed: #10a37f;
+  --yomi-expected: #7c7ff5;
+  --yomi-track: #213050;
+  --rank-a-bg: #a5b4fc; --rank-a-fg: #1e1b4b;
+  --rank-b-bg: #6366f1; --rank-b-fg: #ffffff;
+  --rank-c-bg: #3730a3; --rank-c-fg: #e0e7ff;
+  --rank-d-bg: #213050; --rank-d-fg: #9aa7bf;
+  --rank-won-bg: #064e3b; --rank-won-fg: #a7f3d0;
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
 }
 
 * { box-sizing: border-box; }
@@ -123,3 +148,11 @@ input, textarea, select { font-family: inherit; font-size: 14px; }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 .pop-in { animation: pop-in 0.2s ease; }
+
+/* ヨミ管理 */
+.yomi-row { transition: background 0.12s ease; }
+.yomi-row:hover { background: var(--surface-hover); }
+.num { font-variant-numeric: tabular-nums; }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.grow-x { transform-origin: left center; animation: grow-x 0.7s cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion: reduce) { .grow-x { animation: none; } }

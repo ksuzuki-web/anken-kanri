@@ -42,6 +42,7 @@ function toApp(row) {
     updatedAt:       row.updated_at,
     priority:        row.priority ?? 0,
     winCandidate:    row.win_candidate ?? false,
+    createdAt:       row.created_at,
   }
 }
 
@@ -150,6 +151,64 @@ export async function loadRecentChanges(limit = 120) {
       changedBy: r.changed_by, createdAt: r.created_at,
     }))
   } catch (_) { return [] }
+}
+
+// ===== ステータス推移の履歴（ヨミ管理・週次レポート用）=====
+// change_logs の status / create だけを古い順に取得。テーブル未作成なら空配列。
+export async function loadStatusHistory(maxRows = 10000) {
+  // Supabase は1リクエスト最大1000行なので、ページングして全件取る
+  const PAGE = 1000
+  const rows = []
+  try {
+    for (let from = 0; from < maxRows; from += PAGE) {
+      const { data, error } = await supabase
+        .from('change_logs')
+        .select('candidate_id, candidate_name, field, old_value, new_value, changed_by, created_at')
+        .in('field', ['status', 'create'])
+        .order('created_at', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) throw error
+      rows.push(...data)
+      if (data.length < PAGE) break
+    }
+  } catch (_) { if (!rows.length) return [] }
+  return rows.map(r => ({
+    candidateId: r.candidate_id, candidateName: r.candidate_name,
+    field: r.field, oldValue: r.old_value, newValue: r.new_value,
+    changedBy: r.changed_by, createdAt: r.created_at,
+  }))
+}
+
+// ===== 共有設定（目標など）=====
+// app_settings テーブルに保存してユニット全員で共有。テーブル未作成時はこの端末だけに保存（shared: false）。
+const LOCAL_PREFIX = 'setting:'
+function readLocal(key) {
+  try { const v = localStorage.getItem(LOCAL_PREFIX + key); return v ? JSON.parse(v) : null } catch (_) { return null }
+}
+function writeLocal(key, value) {
+  try { localStorage.setItem(LOCAL_PREFIX + key, JSON.stringify(value)) } catch (_) { /* 容量超過など */ }
+}
+
+export async function loadSetting(key) {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle()
+    if (error) throw error
+    if (data) { writeLocal(key, data.value); return { value: data.value, shared: true } }
+    return { value: readLocal(key), shared: true }
+  } catch (_) {
+    return { value: readLocal(key), shared: false }
+  }
+}
+
+export async function saveSetting(key, value, updatedBy) {
+  writeLocal(key, value)
+  try {
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key, value, updated_by: updatedBy || '', updated_at: new Date().toISOString() })
+    if (error) throw error
+    return { shared: true }
+  } catch (_) { return { shared: false } }
 }
 
 export function subscribeToChanges(onChange) {

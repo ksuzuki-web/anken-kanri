@@ -16,7 +16,7 @@ function greeting() {
   return 'お疲れさまです'
 }
 
-export default function DigestModal({ candidates, todoPending, onOpenCandidate, onClose }) {
+export default function DigestModal({ candidates, todoPending, yomi, onOpenYomi, onOpenCandidate, onClose }) {
   const today = localToday()
   const interviews = candidates.filter(c => c.interviewDate === today)
   const alerts = candidates.filter(c => getAlert(c).isAlert)
@@ -39,6 +39,9 @@ export default function DigestModal({ candidates, todoPending, onOpenCandidate, 
           </div>
           <button onClick={onClose} style={xBtn}>×</button>
         </div>
+
+        {/* 今月のヨミ */}
+        {yomi && <YomiStrip yomi={yomi} onOpen={onOpenYomi} />}
 
         {/* サマリーチップ */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '16px 0 8px' }}>
@@ -97,6 +100,31 @@ export default function DigestModal({ candidates, todoPending, onOpenCandidate, 
         </div>
       </div>
     </div>
+  )
+}
+
+function YomiStrip({ yomi, onOpen }) {
+  const hasT = yomi.target != null && yomi.target > 0
+  const ratio = hasT ? Math.min(yomi.expected / yomi.target, 1) : null
+  const done = hasT && yomi.expected >= yomi.target
+  return (
+    <button onClick={onOpen} style={{ width: '100%', textAlign: 'left', marginTop: 14, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border-soft)', background: 'var(--surface-sub)', cursor: 'pointer', display: 'block' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>🎯 {yomi.monthLabel}の着地予測</span>
+        <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{Math.round(yomi.expected).toLocaleString()}<span style={{ fontSize: 12, marginLeft: 2 }}>万円</span></span>
+        {hasT && <span style={{ fontSize: 12, color: 'var(--muted)' }}>／ 目標 {Math.round(yomi.target).toLocaleString()}万円</span>}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>詳しく →</span>
+      </div>
+      {hasT && (
+        <div style={{ height: 6, background: 'var(--yomi-track)', borderRadius: 3, marginTop: 8, overflow: 'hidden' }}>
+          <div style={{ width: `${ratio * 100}%`, height: '100%', background: done ? 'var(--yomi-confirmed)' : 'var(--yomi-expected)', borderRadius: 3 }} />
+        </div>
+      )}
+      <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 }}>
+        {hasT ? (done ? '目標達成ペースです。Aヨミを取り切りましょう！' : `目標まであと${Math.round(yomi.gap).toLocaleString()}万円。`) : '目標が未設定です。'}
+        {yomi.aCount > 0 && ` Aヨミ${yomi.aCount}件（${Math.round(yomi.aFee).toLocaleString()}万円）が今月の勝負どころ。`}
+      </div>
+    </button>
   )
 }
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { KANBAN_STATUSES, CLOSED_STATUSES, STATUS_LABEL, CA_MEMBERS, STATUSES, STATUS_TODOS, INTERVIEW_STATUSES, WIN_COUNT_STATUSES, ADMIN_CA } from './constants'
-import { loadAll, insertCandidate, saveCandidate, removeCandidate, subscribeToChanges, generateId, loadTodos, upsertTodo, addChangeLog } from './storage'
+import { loadAll, insertCandidate, saveCandidate, removeCandidate, subscribeToChanges, generateId, loadTodos, upsertTodo, addChangeLog, loadStatusHistory, loadSetting, saveSetting } from './storage'
 import { getAlert, getInconsistencies } from './alerts'
 import { suggestNextAction } from './suggestions'
 import Modal from './components/Modal'
@@ -12,6 +12,11 @@ import DigestModal from './components/DigestModal'
 import Confetti from './components/Confetti'
 import LoginGate from './components/LoginGate'
 import CaFeedback from './components/CaFeedback'
+import YomiView from './components/YomiView'
+import MessageComposer from './components/MessageComposer'
+import WeeklyReportModal from './components/WeeklyReportModal'
+import WhatsNewModal, { WHATS_NEW_VERSION } from './components/WhatsNewModal'
+import { buildForecast, summarize, monthKeyOf, monthLabel } from './forecast'
 
 const UNIQUE_STATUSES = ['screening', 'interview1', 'interview2', 'interviewFinal', 'offer', 'won']
 
@@ -226,7 +231,7 @@ function TodoPanel({ items, onToggle }) {
   )
 }
 
-function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, editable, onPriority, onInline, onLog, onDelete, onAddCompany }) {
+function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, editable, onPriority, onInline, onLog, onDelete, onAddCompany, onCompose }) {
   const ss = STATUS_STYLE[c.status] || STATUS_STYLE.lead
   const accent = caColorOf(ca)
   return (
@@ -279,6 +284,9 @@ function MobileCard({ c, isFirst, name, ca, alert, issues, suggestion, editable,
           <span style={{ fontSize: 11, color: 'var(--muted-2)', fontWeight: 600, flexShrink: 0 }}>📋 メモ</span>
           <span style={{ fontSize: 13, color: c.memo ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
         </button>
+        <button onClick={() => onCompose(c)} style={{ ...mLogBtn, justifyContent: 'center', background: 'var(--surface)', fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
+          💬 連絡文をつくる
+        </button>
       </div>
     </div>
   )
@@ -307,6 +315,12 @@ export default function App() {
   const [digestOpen, setDigestOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [confetti, setConfetti] = useState(false)
+  const [history, setHistory] = useState([])          // ステータス推移（ヨミ管理・週報用）
+  const [targets, setTargets] = useState(null)        // 月次目標 { 'YYYY-MM': { CA: 万円 } }
+  const [targetsShared, setTargetsShared] = useState(true)
+  const [composeFor, setComposeFor] = useState(null)  // 連絡文ジェネレーターの対象案件
+  const [reportOpen, setReportOpen] = useState(false)
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
   const isMobile = useIsMobile()
   const px = isMobile ? 12 : 24
 
@@ -349,6 +363,34 @@ export default function App() {
     }
   }, [loading, error, currentUser])
 
+  // ヨミ管理用：ステータス推移の履歴と目標を読み込む（ヨミ画面・週報を開いたときに最新化）
+  const refreshYomiData = useCallback(() => {
+    loadStatusHistory().then(setHistory).catch(() => {})
+    loadSetting('monthly_targets').then(r => { setTargets(r.value || {}); setTargetsShared(r.shared) }).catch(() => {})
+  }, [])
+  useEffect(() => { refreshYomiData() }, [refreshYomiData])
+  useEffect(() => { if (view === 'yomi' || reportOpen) refreshYomiData() }, [view, reportOpen, refreshYomiData])
+
+  // 新機能のお知らせ（ログイン後に1回だけ）
+  useEffect(() => {
+    if (loading || error || !currentUser) return
+    try { if (localStorage.getItem('whatsNew') !== WHATS_NEW_VERSION) setWhatsNewOpen(true) } catch (_) { /* noop */ }
+  }, [loading, error, currentUser])
+
+  const forecast = useMemo(() => buildForecast(candidates, history), [candidates, history])
+
+  async function handleSaveTargets(next) {
+    setTargets(next)
+    const r = await saveSetting('monthly_targets', next, currentUser)
+    setTargetsShared(r.shared)
+  }
+
+  function closeWhatsNew(goYomi) {
+    try { localStorage.setItem('whatsNew', WHATS_NEW_VERSION) } catch (_) { /* noop */ }
+    setWhatsNewOpen(false)
+    if (goYomi) { setDigestOpen(false); setView('yomi') }
+  }
+
   // URLを開いた時点で「誰が操作するか」を必ず選択させる（ログ精度のため）
   if (!currentUser) return <LoginGate onSelect={setCurrentUser} />
 
@@ -365,6 +407,12 @@ export default function App() {
   const closedShown = caClosed.filter(matchesSearch)
   const alertCount = caActive.filter(c => getAlert(c).isAlert).length
   const todoItems = computeTodos(caActive, todos)
+
+  // 朝のダイジェスト用：自分の今月のヨミ
+  const thisMonth = monthKeyOf(new Date())
+  const mySm = summarize(forecast, { monthKey: thisMonth, ca: currentUser, targets })
+  const myA = mySm.pipe.filter(r => r.rank === 'A')
+  const myYomi = { monthLabel: monthLabel(thisMonth), expected: mySm.expected, target: mySm.target, gap: mySm.gap, aCount: myA.length, aFee: myA.reduce((s, r) => s + r.feeUsed, 0) }
 
   // 変更履歴ログ用：値を読みやすく整形
   function logChange(cand, field, oldRaw, newRaw) {
@@ -526,7 +574,7 @@ export default function App() {
 
         {/* リスト / ボード切替 */}
         <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3 }}>
-          {[['list', '☰ リスト'], ['board', '▦ ボード']].map(([v, lbl]) => (
+          {[['list', '☰ リスト'], ['board', '▦ ボード'], ['yomi', '🎯 ヨミ']].map(([v, lbl]) => (
             <button key={v} onClick={() => setView(v)} style={{ border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: view === v ? 'var(--surface)' : 'transparent', color: view === v ? 'var(--text)' : 'var(--muted)', boxShadow: view === v ? 'var(--card-shadow)' : 'none' }}>{lbl}</button>
           ))}
         </div>
@@ -539,6 +587,7 @@ export default function App() {
             <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{currentUser}{isAdmin ? ' 🔑' : ''}</span>
             <span style={{ fontSize: 10, color: 'var(--muted-2)' }}>切替</span>
           </button>
+          <button onClick={() => setReportOpen(true)} title="週次レポートを作る" className="icon-btn" style={iconBtn}>📝</button>
           <button onClick={() => setDigestOpen(true)} title="今日やること" className="icon-btn" style={iconBtn}>☀️</button>
           <button onClick={() => setHistoryOpen(true)} title="変更履歴" className="icon-btn" style={iconBtn}>🕐</button>
           <button onClick={() => setDark(d => !d)} title="ダークモード切替" className="icon-btn" style={iconBtn}>{dark ? '🌙' : '☀'}</button>
@@ -596,10 +645,18 @@ export default function App() {
           </div>
 
           {/* 担当CD分析（特定CAを選択中のみ） */}
-          {caFilter !== 'all' && <CaFeedback ca={caFilter} candidates={candidates} />}
+          {caFilter !== 'all' && view !== 'yomi' && <CaFeedback ca={caFilter} candidates={candidates} />}
 
-          {/* ボード表示 */}
-          {view === 'board' ? (
+          {/* ヨミ管理 */}
+          {view === 'yomi' ? (
+            <YomiView
+              fc={forecast} targets={targets} targetsShared={targetsShared}
+              canEditTargets={isAdmin} onSaveTargets={handleSaveTargets}
+              caFilter={caFilter} currentUser={currentUser}
+              onOpenCandidate={openCandidate} onCompose={setComposeFor}
+              isMobile={isMobile}
+            />
+          ) : view === 'board' ? (
             <BoardView
               candidates={displayActive}
               onStatusChange={(c, s) => handleInlineChange(c, 'status', s)}
@@ -653,16 +710,17 @@ export default function App() {
                           onPriority={handlePriorityChange} onInline={handleInlineChange}
                           onLog={(cand, type, sug) => setLogModal({ candidate: cand, type, suggestion: sug })}
                           onDelete={handleDelete}
-                          onAddCompany={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })} />
+                          onAddCompany={() => setModal({ _prefill: { candidateName: name, assignedCA: ca } })}
+                          onCompose={setComposeFor} />
                       ))
                     )}
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
-                    <div style={{ minWidth: 720 }}>
+                    <div style={{ minWidth: 760 }}>
                       {/* ヘッダー */}
                       <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, columnGap: 10, padding: '2px 14px 8px', borderBottom: '1px solid var(--border-soft)', borderLeft: '3px solid transparent' }}>
-                        {['注力度', '求職者', '選考企業', 'ステータス', '着地', '紹介料', '面接日', '次回アクション', 'メモ', ''].map((h, i) => (
+                        {['注力度', '求職者', '選考企業', 'ステータス', '着地', '紹介料', '面接日', '次回アクション', 'メモ', '連絡', ''].map((h, i) => (
                           <div key={i} style={hcell}>{h}</div>
                         ))}
                       </div>
@@ -719,6 +777,9 @@ export default function App() {
                                   <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: c.memo ? 'var(--text-3)' : 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.memo || '—'}</span>
                                   <span style={{ fontSize: 11, color: 'var(--faint)', flexShrink: 0 }}>📋</span>
                                 </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <button onClick={() => setComposeFor(c)} title="連絡文をつくる" className="icon-btn" style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', fontSize: 12, padding: 0 }}>💬</button>
                               </div>
                               <div style={{ textAlign: 'center' }}>
                                 {editable && <button onClick={() => handleDelete(c)} title="削除" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--faint)', fontSize: 15, padding: '2px 4px', borderRadius: 4 }}
@@ -780,14 +841,14 @@ export default function App() {
           )}
         </div>
 
-        {/* Right sidebar */}
-        <div style={isMobile
+        {/* Right sidebar（ヨミ画面では非表示にして横幅を使う） */}
+        {view !== 'yomi' && <div style={isMobile
           ? { width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }
           : { width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 120, maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' }}>
           <FunnelChart candidates={[...caActive, ...caClosed]} />
           <PriorityChart candidates={caActive} />
           <TodoPanel items={todoItems} onToggle={handleToggleTodo} />
-        </div>
+        </div>}
       </div>
 
       {/* Modals */}
@@ -800,8 +861,15 @@ export default function App() {
           onUpdate={handleLogUpdate} onClose={() => setLogModal(null)} />
       )}
       {historyOpen && <HistoryModal onClose={() => setHistoryOpen(false)} />}
+      {composeFor && <MessageComposer candidate={composeFor} sender={currentUser} onClose={() => setComposeFor(null)} />}
+      {reportOpen && (
+        <WeeklyReportModal candidates={candidates} history={history} fc={forecast} targets={targets}
+          defaultCa={isAdmin ? caFilter : currentUser} onClose={() => setReportOpen(false)} />
+      )}
+      {whatsNewOpen && <WhatsNewModal onClose={() => closeWhatsNew(false)} onGoYomi={() => closeWhatsNew(true)} />}
       {digestOpen && (
         <DigestModal candidates={active.filter(c => c.assignedCA === currentUser)} todoPending={computeTodos(active.filter(c => c.assignedCA === currentUser), todos).filter(t => !t.isDone)}
+          yomi={myYomi} onOpenYomi={() => { setDigestOpen(false); setCaFilter(currentUser); setView('yomi') }}
           onOpenCandidate={c => { setDigestOpen(false); openCandidate(c) }} onClose={() => setDigestOpen(false)} />
       )}
     </div>
@@ -821,5 +889,5 @@ const mLabel = { fontSize: 11, color: 'var(--muted-2)', fontWeight: 600, marginB
 const mLogBtn = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 11px', border: '1px solid var(--border-soft)', borderRadius: 8, background: 'var(--surface-sub)', cursor: 'pointer' }
 
 // グリッド一覧の列定義（テキスト列がfrで余白を吸収＝右側に隙間を作らない）
-const GRID_COLS = '58px 132px minmax(110px,0.9fr) 124px 46px 60px 64px minmax(140px,1.8fr) minmax(96px,1.2fr) 30px'
+const GRID_COLS = '58px 132px minmax(110px,0.9fr) 124px 46px 60px 64px minmax(140px,1.8fr) minmax(96px,1.2fr) 34px 30px'
 const hcell = { fontSize: 10.5, color: 'var(--muted-2)', fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
